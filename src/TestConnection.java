@@ -22,7 +22,14 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Map;
 import java.util.Properties;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+
 
 import oracle.jdbc.pool.OracleDataSource;
 import oracle.jdbc.OracleConnection;
@@ -36,14 +43,33 @@ public class TestConnection {
     // and
     // <PATH_TO_WALLET> is the path to the connection wallet on your machine.
     // NOTE: on a Mac, there's no C: drive...
-    final static String DB_URL = "";
+
+    static String DB_URL = "";
     final static String DB_USER = "ADMIN";
-    final static String DB_PASSWORD = "";
+    static String DB_PASSWORD = "";
 
-
+    
     // This method creates a database connection using
     // oracle.jdbc.pool.OracleDataSource.
     public static void main(String args[]) throws SQLException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(".env"))) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+
+                if (line.isEmpty() || line.startsWith("#")) continue;
+
+                if (line.startsWith("DB_URL=")) {
+                    DB_URL = line.substring("DB_URL=".length()).trim();
+                } else if (line.startsWith("DB_PASSWORD=")) {
+                    DB_PASSWORD = line.substring("DB_PASSWORD=".length()).trim();
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading .env file: " + e.getMessage());
+        }
+
         Properties info = new Properties();
             System.out.println("DB_URL: " + DB_URL);
 
