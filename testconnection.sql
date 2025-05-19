@@ -1,0 +1,5 @@
+CREATE TABLE Instructor (
+    I_ID INT PRIMARY KEY,
+    I_NAME VARCHAR(100),
+    I_ROLE VARCHAR(50)
+);
