@@ -1,0 +1,32 @@
+-- INSERT INTO Majors (mname, dept_code) VALUES ('CS', 0);
+-- INSERT INTO Majors (mname, dept_code) VALUES ('ECE', 1);
+
+-- not made yet create table Students (
+-- perm integer,
+-- sname varchar(100),
+-- address varchar(50),
+-- PIN varchar(256),
+-- mname varchar(20) NOT NULL,
+-- PRIMARY KEY (perm),
+-- FOREIGN KEY (mname) REFERENCES Majors
+-- );
+
+-- CREATE TABLE Courses (
+-- Course_num VARCHAR(7),
+-- Title_short VARCHAR(20),
+-- Prereq VARCHAR(50),
+-- cap INTEGER,
+-- time_loc VARCHAR(20),
+-- enroll_code INTEGER not null,
+-- PRIMARY KEY (Course_num)
+-- );
+
+-- CREATE Table Course_Offering( 
+-- yr_qtr VARCHAR(10),
+-- prof_name VARCHAR(15) not null,
+-- course_num VARCHAR(7),
+-- PRIMARY KEY(course_num, yr_qtr),
+-- FOREIGN KEY (course_num) REFERENCES Courses
+-- );
+
+
