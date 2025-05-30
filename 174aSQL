@@ -1,32 +1,275 @@
--- INSERT INTO Majors (mname, dept_code) VALUES ('CS', 0);
--- INSERT INTO Majors (mname, dept_code) VALUES ('ECE', 1);
+-- this is the ran SQL commands on the database
 
--- not made yet create table Students (
--- perm integer,
--- sname varchar(100),
--- address varchar(50),
--- PIN varchar(256),
--- mname varchar(20) NOT NULL,
--- PRIMARY KEY (perm),
--- FOREIGN KEY (mname) REFERENCES Majors
--- );
+INSERT INTO Majors (mname, dept_code) VALUES ('CS', 0);
+INSERT INTO Majors (mname, dept_code) VALUES ('ECE', 1);
 
--- CREATE TABLE Courses (
--- Course_num VARCHAR(7),
--- Title_short VARCHAR(20),
--- Prereq VARCHAR(50),
--- cap INTEGER,
--- time_loc VARCHAR(20),
--- enroll_code INTEGER not null,
--- PRIMARY KEY (Course_num)
--- );
+create table Students (
+perm integer,
+sname varchar(100),
+address varchar(50),
+PIN varchar(256),
+mname varchar(20) NOT NULL,
+PRIMARY KEY (perm),
+FOREIGN KEY (mname) REFERENCES Majors
+);
 
--- CREATE Table Course_Offering( 
--- yr_qtr VARCHAR(10),
--- prof_name VARCHAR(15) not null,
--- course_num VARCHAR(7),
--- PRIMARY KEY(course_num, yr_qtr),
--- FOREIGN KEY (course_num) REFERENCES Courses
--- );
+CREATE TABLE Courses (
+Course_num VARCHAR(7),
+Prereq VARCHAR(50),
+enroll_code INTEGER not null,
+PRIMARY KEY (Course_num)
+);
+
+CREATE Table Course_Offering( 
+yr_qtr VARCHAR(10),
+prof_name VARCHAR(15) not null,
+cap INTEGER,
+time_loc VARCHAR(50),
+course_num VARCHAR(7),
+PRIMARY KEY(course_num, yr_qtr),
+FOREIGN KEY (course_num) REFERENCES Courses
+);
+
+create table is_taking(
+perm integer,
+course_num VARCHAR(7),
+yr_qtr VARCHAR(10),
+FOREIGN KEY (perm) REFERENCES Students,
+FOREIGN KEY (course_num, yr_qtr) REFERENCES Course_Offering,
+PRIMARY KEY (perm, course_num, yr_qtr)
+);
+
+create table has_taken(
+perm integer,
+course_num VARCHAR(7),
+yr_qtr VARCHAR(10),
+grade VARCHAR(2) not null,
+FOREIGN KEY (perm) REFERENCES Students,
+FOREIGN KEY (course_num, yr_qtr) REFERENCES Course_offering,
+PRIMARY KEY (perm, course_num, yr_qtr)
+);
+
+create table is_major_elective(
+course_num VARCHAR(7),
+mname varchar(20),
+FOREIGN KEY (course_num) REFERENCES Courses,
+FOREIGN KEY (mname) REFERENCES Majors,
+PRIMARY KEY (course_num, mname)
+);
+
+create table is_mandatory(
+course_num VARCHAR(7),
+mname varchar(20),
+FOREIGN KEY (course_num) REFERENCES Courses,
+FOREIGN KEY (mname) REFERENCES Majors,
+PRIMARY KEY (course_num, mname)
+);
+
+-- COURSES
+
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('CS174', 12345, 'CS130 CS026');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('CS170', 54321, 'CS130 CS154');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('CS160', 41725, 'CS026');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('CS026', 76543, '');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('CS154', 32165, '');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('CS130', 56789, '');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('CS010', 81623, '');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('EC154', 93156, 'CS026 EC152');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('EC140', 19023, 'CS130 CS026');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('EC015', 71631, '');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('EC152', 91823, '');
+INSERT INTO Courses (course_num, enroll_code, prereq) VALUES ('EC010', 82612, '');
+
+-- COURSE OFFERINGS
+
+-- Spring 2025
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS174', '25 S', 'Venus', 8, 'TR10-12 Psycho 1132');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS170', '25 S', 'Jupiter', 8, 'MWF10-11 English 1124');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS160', '25 S', 'Mercury', 8, 'MWF2-3 Engr 1132');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS026', '25 S', 'Mars', 8, 'MWF2-3 Bio 2222');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC154', '25 S', 'Saturn', 7, 'T3-5 Maths 3333');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC140', '25 S', 'Gold', 10, 'TR1-3 Chem 1234');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC015', '25 S', 'Silver', 8, 'MW11-1 Engr 2116');
+
+-- Winter 2025
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS170', '25 W', 'Copper', 18, 'MWF10-11 English 1124');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS160', '25 W', 'Iron', 15, 'MWF2-3 Engr 1132');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS154', '25 W', 'Tin', 10, 'MF8-9 Engr 2116');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS130', '25 W', 'Star', 15, 'TR2-4 Chem 1111');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS026', '25 W', 'Tin', 15, 'MWF2-3 Bio 2222');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC154', '25 W', 'Saturn', 18, 'T3-5 Maths 3333');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC152', '25 W', 'Gold', 10, 'MW11-1 Engr 3163');
+
+-- Fall 2024
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS170', '24 F', 'Copper', 15, 'MWF10-11 English 1124');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS160', '24 F', 'Mercury', 10, 'MWF2-3 Engr 1132');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS154', '24 F', 'Mars', 10, 'MWF8-9 Engr 2116');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS130', '24 F', 'Jupiter', 15, 'TR2-4 Chem 1111');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS026', '24 F', 'Tin', 15, 'MWF2-3 Bio 2222');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('CS010', '24 F', 'Gold', 10, 'MWR3-4 Chem 3333');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC154', '24 F', 'Silver', 10, 'T3-5 Maths 3333');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC152', '24 F', 'Sun', 10, 'MW11-1 Engr 3163');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC015', '24 F', 'Moon', 15, 'TR2-4 Engr 1124');
+INSERT INTO course_offering (course_num, yr_qtr, prof_name, cap, time_loc) VALUES ('EC010', '24 F', 'Earth', 15, 'MWF8-9 Physics 4004');
 
 
+-- STUDENTS
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('12345', 'Alfred Hitchcock', '6667 El Colegio #40', 'CS', '12345');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('14682', 'Billy Clinton', '5777 Hollister', 'ECE', '14682');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('37642', 'Cindy Laugher', '7000 Hollister', 'CS', '37642');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('85821', 'David Copperfill', '1357 State St', 'CS', '85821');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('38567', 'Elizabeth Sailor', '4321 State St', 'ECE', '38567');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('81934', 'Fatal Castro', '3756 La Cumbre Plaza', 'CS', '81934');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('98246', 'George Brush', '5346 Foothill Av', 'CS', '98246');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('35328', 'Hurvyson Ford', '678 State St', 'ECE', '35328');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('84713', 'Ivan Lendme', '1235 Johnson Dr', 'ECE', '84713');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('36912', 'Joe Pepsi', '3210 State St', 'CS', '36912');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('46590', 'Kelvin Coster', 'Santa Cruz #3579', 'ECE', '46590');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('91734', 'Li Kung', '2 People''s Rd Beijing', 'ECE', '91734');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('73521', 'Magic Jordon', '3852 Court Rd', 'CS', '73521');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('53540', 'Nam-hoi Chung', '1997 People''s St HK', 'CS', '53540');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('82452', 'Olive Stoner', '6689 El Colegio #151', 'ECE', '82452');
+INSERT INTO students (perm, sname, address, mname, pin) VALUES ('18221', 'Pit Wilson', '911 State St', 'ECE', '18221');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (12345, 'CS154', '25 W', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (12345, 'CS130', '25 W', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (12345, 'EC154', '25 W', 'C');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (12345, 'CS026', '24 F', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (12345, 'CS010', '24 F', 'A');
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (12345, 'CS170', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (12345, 'CS160', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (14682, 'CS160', '25 W', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (14682, 'CS130', '25 W', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (14682, 'CS026', '24 F', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (14682, 'CS010', '24 F', 'A');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (37642, 'EC152', '25 W', 'C');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (37642, 'CS130', '25 W', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (37642, 'EC015', '24 F', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (37642, 'EC010', '24 F', 'A');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (37642, 'EC154', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (37642, 'CS160', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (85821, 'CS130', '25 W', 'C');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (85821, 'CS026', '25 W', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (85821, 'CS010', '24 F', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (85821, 'EC015', '24 F', 'B');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (85821, 'CS174', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (85821, 'CS160', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (38567, 'EC154', '25 W', 'C');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (38567, 'CS130', '25 W', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (38567, 'EC152', '24 F', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (38567, 'CS154', '24 F', 'B');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (38567, 'CS174', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (38567, 'CS170', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (38567, 'CS160', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (81934, 'CS154', '25 W', 'C');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (81934, 'CS130', '25 W', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (81934, 'CS026', '24 F', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (81934, 'EC152', '24 F', 'B');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (81934, 'EC154', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (98246, 'EC152', '25 W', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (98246, 'CS154', '24 F', 'A');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (98246, 'CS130', '24 F', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (98246, 'CS026', '24 F', 'A');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (98246, 'CS160', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (98246, 'CS174', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (98246, 'CS170', '25 S');
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (98246, 'EC154', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (35328, 'CS130', '24 F', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (35328, 'CS026', '24 F', 'A');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (35328, 'CS174', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (84713, 'CS026', '25 W', 'D');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (84713, 'EC015', '24 F', 'F');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (84713, 'CS010', '24 F', 'C');
+
+-- No has_taken
+-- No is_taking
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (46590, 'CS026', '25 W', 'A');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (91734, 'CS026', '25 W', 'A');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (73521, 'CS026', '25 W', 'B');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (53540, 'CS154', '25 W', 'C');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (53540, 'CS130', '25 W', 'C');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (53540, 'CS170', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (82452, 'EC152', '25 W', 'C');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (82452, 'CS026', '25 W', 'C');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (82452, 'EC154', '25 S');
+
+-- has_taken
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (18221, 'CS130', '25 W', 'B');
+INSERT INTO has_taken (perm, course_num, yr_qtr, grade) VALUES (18221, 'CS026', '25 W', 'B');
+
+-- is_taking
+INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (18221, 'CS174', '25 S');
+
+-- Mandatory courses for CS and ECE
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS026', 'CS');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS130', 'CS');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS154', 'CS');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS160', 'CS');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS170', 'CS');
+
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS026', 'ECE');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS130', 'ECE');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS154', 'ECE');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS160', 'ECE');
+INSERT INTO IS_MANDATORY (course_num, mname) VALUES ('CS170', 'ECE');
+
+-- Major electives for CS and ECE
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('CS010', 'CS');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC010', 'CS');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC015', 'CS');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC140', 'CS');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC152', 'CS');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC154', 'CS');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('CS174', 'CS');
+
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('CS010', 'ECE');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC010', 'ECE');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC015', 'ECE');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC140', 'ECE');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC152', 'ECE');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('EC154', 'ECE');
+INSERT INTO IS_MAJOR_ELECTIVE (course_num, mname) VALUES ('CS174', 'ECE');
