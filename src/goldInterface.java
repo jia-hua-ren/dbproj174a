@@ -28,9 +28,11 @@ public class goldInterface {
         }
         // First force user to login 
         String studentName = "";
+        String permNumber = "";
+        String[] array = new String[2];
         while (true) {
             try {
-                studentName = login();
+                array = login();
                 break;
             } catch (Exception e) {
                 System.out.println("An error occurred during login, please try again.");
@@ -38,50 +40,53 @@ public class goldInterface {
                 return; // Exit if login fails
             }
         }
+        studentName = array[0];
+        permNumber = array[1];
 
-        // Find out what action the user wants to take
-        System.out.println("Welcome to the Gold Interface " + studentName + "!");
-        System.out.println("Please choose an action:");
-        System.out.println("1. Add a Course");
-        System.out.println("2. Drop a Course");
-        System.out.println("3. List Enrolled Courses (Current Quarter)");
-        System.out.println("4. View Grades from Previous Quarter");
-        System.out.println("5. Requirements Check");
-        System.out.println("6. Make a Plan");
-        System.out.println("7. Change PIN");
-        System.out.println("8. Exit");
+        while (true) { // Find out what action the user wants to take
+            System.out.println("Welcome to the Gold Interface " + studentName + "!");
+            System.out.println("Please choose an action:");
+            System.out.println("1. Add a Course");
+            System.out.println("2. Drop a Course");
+            System.out.println("3. List Enrolled Courses (Current Quarter)");
+            System.out.println("4. View Grades from Previous Quarter");
+            System.out.println("5. Requirements Check");
+            System.out.println("6. Make a Plan");
+            System.out.println("7. Change PIN");
+            System.out.println("8. Exit");
 
-        Scanner scanner = new Scanner(System.in);
-        int choice = scanner.nextInt();
+            Scanner scanner = new Scanner(System.in);
+            int choice = scanner.nextInt();
 
-        switch (choice) {
-            case 1:
-                addCourse();
-                break;
-            case 2:
-                dropCourse();
-                break;
-            case 3:
-                listCurrentQuarterCourses();
-                break;
-            case 4:
-                viewPreviousQuarterGrades();
-                break;
-            case 5:
-                checkRequirements();
-                break;
-            case 6:
-                makeStudyPlan();
-                break;
-            case 7:
-                changePin();
-                break;
-            case 8:
-                System.out.println("Exiting the application.");
-                System.exit(0);
-                break;
-            default:
-                System.out.println("Invalid choice. Please try again.");
+            switch (choice) {
+                case 1:
+                    addCourse(permNumber);
+                    break;
+                case 2:
+                    dropCourse(permNumber);
+                    break;
+                case 3:
+                    listCurrentQuarterCourses(permNumber);
+                    break;
+                case 4:
+                    viewPreviousQuarterGrades(permNumber);
+                    break;
+                case 5:
+                    checkRequirements();
+                    break;
+                case 6:
+                    makeStudyPlan();
+                    break;
+                case 7:
+                    changePin();
+                    break;
+                case 8:
+                    System.out.println("Exiting the application.");
+                    System.exit(0);
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
         }
 
     }
@@ -116,16 +121,16 @@ public class goldInterface {
 
     }
 
-    public static String login() throws Exception {
+    public static String[] login() throws Exception {
         // Implement login logic here
         // For example, you can use a Scanner to read user input for username and
         // password
         String sname = "";
-
+        String perm = "";
         // Check that the username and password match valid entries in the database
         while (true) {
             System.out.print("Enter perm number: ");
-            String perm = scanner.nextLine();
+            perm = scanner.nextLine();
 
             System.out.print("Enter pin: ");
             String pin = scanner.nextLine();
@@ -171,35 +176,10 @@ public class goldInterface {
             }
         }
 
-        return sname;
+        return new String[]{sname, perm};
     }
 
-    public static void addCourse() {
-        // First read in the perm number of the user
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter your perm number: ");
-        String permNumber = scanner.nextLine();
-        // Validate the perm number
-        while (true) {
-            try {
-                System.out.println("Validating perm number...");
-                PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT * FROM students WHERE perm = ?");
-                preparedStatement.setString(1, permNumber);
-                ResultSet resultSet = preparedStatement.executeQuery();
-
-                if (!resultSet.next()) {
-                    System.out.println("Perm number does not exist, try again.");
-                    permNumber = scanner.nextLine();
-                } else {
-                    break;
-                }
-            } catch (SQLException e) {
-                System.out.println("SQL ERROR:");
-                System.out.println(e);
-                return;
-            }
-        }
+    public static void addCourse(String permNumber) {
         // Read in the course name
         System.out.print("Enter the course name: ");
         String courseNum = scanner.nextLine();
@@ -302,33 +282,7 @@ public class goldInterface {
         }
     }
 
-    public static void dropCourse() {
-        // Implement drop course logic here
-        // For example, you can use a Scanner to read user input for course name
-        System.out.print("Enter the student perm number: ");
-        String permNumber = scanner.nextLine();
-        // Validate the perm number
-        while (true) {
-            try {
-                PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT * FROM students WHERE perm = ?");
-                preparedStatement.setString(1, permNumber);
-                ResultSet resultSet = preparedStatement.executeQuery();
-
-                if (!resultSet.next()) {
-                    System.out.println("Perm number does not exist, try again.");
-                    permNumber = scanner.nextLine();
-                } else {
-                    break;
-                }
-            } catch (SQLException e) {
-                System.out.println("SQL ERROR:");
-                System.out.println(e);
-            }
-
-        }
-
-        // Now that we have a valid perm number, we can drop a course
+    public static void dropCourse(String permNumber) {
         System.out.print("Enter the course number you want to drop: ");
         String courseNum = scanner.nextLine();
 
@@ -366,40 +320,9 @@ public class goldInterface {
                 System.out.println(e);
             }
         }
-        scanner.close();
     }
 
-    public static void listCurrentQuarterCourses() {
-        // First get the perm number of the user
-        System.out.print("Enter your perm number: ");
-        // Validate the perm number
-        while (!scanner.hasNextInt()) {
-            System.out.println("Invalid perm number format. Please enter a valid perm number.");
-            scanner.next(); // Clear the invalid input
-        }
-        String permNumber = scanner.nextLine();
-        try {
-            PreparedStatement preparedStatement = connection.prepareStatement(
-                    "SELECT * FROM students WHERE perm = ?");
-            preparedStatement.setString(1, permNumber);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (!resultSet.next()) {
-                System.out.println("Perm number does not exist, try again.");
-                while (!scanner.hasNextInt()) {
-                    System.out.println("Invalid perm number format. Please enter a valid perm number.");
-                    scanner.next(); // Clear the invalid input
-                }
-                permNumber = scanner.nextLine();
-                preparedStatement.setString(1, permNumber);
-                resultSet = preparedStatement.executeQuery();
-
-            }
-
-        } catch (Exception e) {
-            System.out.println("SQL ERROR:");
-            System.out.println(e);
-            return;
-        }
+    public static void listCurrentQuarterCourses(String permNumber) {
         // went through validation, now list courses by looking at the is_taking table
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(
@@ -419,7 +342,7 @@ public class goldInterface {
         }
     }
 
-    public static void viewPreviousQuarterGrades() {
+    public static void viewPreviousQuarterGrades(String permNumber) {
         // First calculate the previous quarter based on the current quarter
         String previousQuarter = "";
         if (currentQuarter.charAt(currentQuarter.length() - 1) == 'S') {
@@ -430,37 +353,6 @@ public class goldInterface {
             previousQuarter = "24 S";
         }
 
-        // Now get the perm number of the user
-        // First get the perm number of the user
-        System.out.print("Enter your perm number: ");
-        // Validate the perm number
-        while (!scanner.hasNextInt()) {
-            System.out.println("Invalid perm number format. Please enter a valid perm number.");
-            scanner.next(); // Clear the invalid input
-        }
-        String permNumber = scanner.nextLine();
-        try {
-            PreparedStatement preparedStatement = connection.prepareStatement(
-                    "SELECT * FROM students WHERE perm = ?");
-            preparedStatement.setString(1, permNumber);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (!resultSet.next()) {
-                System.out.println("Perm number does not exist, try again.");
-                while (!scanner.hasNextInt()) {
-                    System.out.println("Invalid perm number format. Please enter a valid perm number.");
-                    scanner.next(); // Clear the invalid input
-                }
-                permNumber = scanner.nextLine();
-                preparedStatement.setString(1, permNumber);
-                resultSet = preparedStatement.executeQuery();
-
-            }
-
-        } catch (Exception e) {
-            System.out.println("SQL ERROR:");
-            System.out.println(e);
-            return;
-        }
         // went through validation, now list courses by looking at the has_taken table
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(
