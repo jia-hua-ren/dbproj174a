@@ -170,8 +170,8 @@ public class Registrar {
 
         String error = "";
 
-        // Step 1: Check if student exists
         try {
+            // Step 1: Check if student exists
             String checkSql = "SELECT 1 FROM Students WHERE perm = ?";
             PreparedStatement checkStmt = connection.prepareStatement(checkSql);
             error = "Error checking student: ";
@@ -211,11 +211,11 @@ public class Registrar {
                 return; // Exit early
             }
 
-            // Check if student already enrolled in the course
+            // Step 4: Check if student already enrolled in the course
             error = "Error checking existing enrollment: ";
             String existingEnrollmentSql = "SELECT 1 FROM is_taking WHERE perm = ? AND course_num = ? AND yr_qtr = ?";
             PreparedStatement existingEnrollmentStmt = connection.prepareStatement(existingEnrollmentSql);
-            existingEnrollmentStmt.setString(1, studentId);
+            existingEnrollmentStmt.setInt(1, Integer.parseInt(studentId));
             existingEnrollmentStmt.setString(2, courseId);
             existingEnrollmentStmt.setString(3, courseYrQtr);
             rs = existingEnrollmentStmt.executeQuery();
@@ -225,7 +225,7 @@ public class Registrar {
                 return; // Exit early
             }
 
-            // Check if course is already taken with passing grade
+            // Step 5: Check if course is already taken with passing grade
             error = "Error checking previous enrollment: ";
             String previousEnrollmentSql = "SELECT grade FROM has_taken WHERE perm = ? AND course_num = ?";
             PreparedStatement previousEnrollmentStmt = connection.prepareStatement(previousEnrollmentSql);
@@ -241,7 +241,7 @@ public class Registrar {
                 }
             }
 
-            // Step 5: check if student has taken prerequisite courses with passing grade
+            // Step 6: check if student has taken prerequisite courses with passing grade
             error = "Error checking prerequisites: ";
             String prereqSql = "SELECT prereq FROM courses WHERE course_num = ?";
             PreparedStatement prereqStmt = connection.prepareStatement(prereqSql);
@@ -276,7 +276,7 @@ public class Registrar {
                 return; // Exit early
             }
 
-            // Step 5: Check course capacity
+            // Step 7: Check course capacity
             error = "Error retrieving course cap: ";
             String capSql = "SELECT cap FROM Course_offering WHERE course_num = ?";
             int courseCap = 0;
@@ -291,7 +291,7 @@ public class Registrar {
                 return;
             }
 
-            // Step 6: Count current enrolled students
+            // Step 8: Count current enrolled students
             error = "Error counting enrolled students: ";
             String enrolledCountSql = "SELECT COUNT(*) AS enrolled FROM is_taking WHERE course_num = ? AND yr_qtr = ?";
             int enrolled = 0;
@@ -304,12 +304,12 @@ public class Registrar {
                 enrolled = rs.getInt("enrolled");
             }
 
-            // Step 7: Compare count with cap
+            // Step 9: Compare count with cap
             if (enrolled >= courseCap) {
                 System.out.println("Cannot enroll: course is full (cap = " + courseCap + ").");
                 return;
             }
-            // Step 8: Insert into is_taking table
+            // Step 10: Insert into is_taking table
             error = "Error inserting into is_taking: ";
             String sql = "INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (?, ?, ?)";
             PreparedStatement pstmt = connection.prepareStatement(
@@ -330,17 +330,15 @@ public class Registrar {
     }
 
     private static void dropStudentFromCourse() {
-        // check if this is the only coruse this student is taking
-
         String error = "";
 
         System.out.print("Enter student ID: ");
         String studentId = scanner.nextLine().trim();
+
         System.out.print("Enter course ID: ");
         String courseId = scanner.nextLine().trim();
-        System.out.print(
-                "Enter course year/qtr (In this format: yy F/W/S, where yy is last 2 digits of year followed by the quarter): ");
-        String courseYrQtr = scanner.nextLine().trim();
+
+        String courseYrQtr = "25 S"; // Hardcoded for current quarter as per requirements
 
         try {
             // Step 1: Check if student exists
@@ -370,7 +368,7 @@ public class Registrar {
             error = "Error checking enrollment: ";
             String enrollmentCheckSql = "SELECT 1 FROM is_taking WHERE perm = ? AND course_num = ? AND yr_qtr = ?";
             PreparedStatement enrollmentCheckStmt = connection.prepareStatement(enrollmentCheckSql);
-            enrollmentCheckStmt.setString(1, studentId);
+            enrollmentCheckStmt.setInt(1, Integer.parseInt(studentId));
             enrollmentCheckStmt.setString(2, courseId);
             enrollmentCheckStmt.setString(3, courseYrQtr);
             rs = enrollmentCheckStmt.executeQuery();
@@ -380,18 +378,33 @@ public class Registrar {
                 return; // Exit early
             }
 
+            // Step 4: Check if this is the only course the student is taking
+            error = "Error counting enrolled courses: ";
+            String countSql = "SELECT COUNT(*) AS enrolled FROM is_taking WHERE perm = ?";
+            int count = 0;
+            PreparedStatement countStmt = connection.prepareStatement(countSql);
+            countStmt.setInt(1, Integer.parseInt(studentId));
+            rs = countStmt.executeQuery();
+            if (rs.next()) {
+                count = rs.getInt("enrolled");
+            }
+            if (count == 1) {
+                System.out.println("Cannot drop: this is the only course the student is taking.");
+                return; // Exit early
+            }
+
             // Step 4: Delete from is_taking table
             error = "Error deleting from is_taking: ";
-            String sql = "DELETE FROM is_taking (perm, course_num, yr_qtr) VALUES (?, ?, ?)";
+            String sql = "DELETE FROM is_taking WHERE perm=? AND course_num=? AND yr_qtr=?";
 
             PreparedStatement pstmt = connection.prepareStatement(sql);
-            pstmt.setString(1, studentId);
+            pstmt.setInt(1, Integer.parseInt(studentId));
             pstmt.setString(2, courseId);
             pstmt.setString(3, courseYrQtr); // Assuming current year and quarter
-            int rowsInserted = pstmt.executeUpdate();
-            if (rowsInserted > 0) {
+            int rowsDeleted = pstmt.executeUpdate();
+            if (rowsDeleted > 0) {
                 System.out.println(
-                        "Student " + studentId + " added to course " + courseId + " " + courseYrQtr + " successfully.");
+                        "Student " + studentId + " dropped course " + courseId + " " + courseYrQtr + " successfully.");
             }
 
         } catch (SQLException e) {
