@@ -161,15 +161,12 @@ public class Registrar {
     }
 
     private static void addStudentToCourse() {
-        // TODO check if student has taken prerequisite courses with grades C or better
-
         System.out.print("Enter student ID: ");
         String studentId = scanner.nextLine().trim();
-        System.out.print("Enter course ID: ");
+        System.out.print("Enter course ID (current quarter only, 25 S): ");
         String courseId = scanner.nextLine().trim();
-        System.out.print(
-                "Enter course year/qtr (In this format: yy F/W/S, where yy is last 2 digits of year followed by the quarter): ");
-        String courseYrQtr = scanner.nextLine().trim();
+
+        String courseYrQtr = "25 S"; // Hardcoded for current quarter as per requirements
 
         String error = "";
 
@@ -205,11 +202,6 @@ public class Registrar {
             error = "Error checking course: ";
             String courseCheckSql = "SELECT 1 FROM Course_offering WHERE course_num = ? AND yr_qtr = ?";
 
-            if (!courseYrQtr.equals("25 S")) {
-                System.out.println("Cannot enroll: course is not in current quarter (25 S).");
-                return; // Exit early
-            }
-
             PreparedStatement courseCheckStmt = connection.prepareStatement(courseCheckSql);
             courseCheckStmt.setString(1, courseId);
             courseCheckStmt.setString(2, courseYrQtr);
@@ -219,19 +211,32 @@ public class Registrar {
                 return; // Exit early
             }
 
-            // Step 4: Check if course is already taken with passing grade
+            // Check if student already enrolled in the course
+            error = "Error checking existing enrollment: ";
+            String existingEnrollmentSql = "SELECT 1 FROM is_taking WHERE perm = ? AND course_num = ? AND yr_qtr = ?";
+            PreparedStatement existingEnrollmentStmt = connection.prepareStatement(existingEnrollmentSql);
+            existingEnrollmentStmt.setString(1, studentId);
+            existingEnrollmentStmt.setString(2, courseId);
+            existingEnrollmentStmt.setString(3, courseYrQtr);
+            rs = existingEnrollmentStmt.executeQuery();
+            if (rs.next()) {
+                System.out.println("Cannot enroll: student is already enrolled in course " + courseId + " "
+                        + courseYrQtr + ".");
+                return; // Exit early
+            }
+
+            // Check if course is already taken with passing grade
             error = "Error checking previous enrollment: ";
-            String previousEnrollmentSql = "SELECT grade FROM has_taken WHERE perm = ? AND course_num = ? AND yr_qtr = ?";
+            String previousEnrollmentSql = "SELECT grade FROM has_taken WHERE perm = ? AND course_num = ?";
             PreparedStatement previousEnrollmentStmt = connection.prepareStatement(previousEnrollmentSql);
             previousEnrollmentStmt.setString(1, studentId);
             previousEnrollmentStmt.setString(2, courseId);
-            previousEnrollmentStmt.setString(3, courseYrQtr);
             rs = previousEnrollmentStmt.executeQuery();
-            if (rs.next()) {
+            while (rs.next()) {
                 String grade = rs.getString("grade");
-                if (grade.contains("F") && grade.contains("D")) {
-                    System.out.println("Cannot enroll: student has already taken course " + courseId + " "
-                            + courseYrQtr + " with passing grade " + grade + ".");
+                if (!(grade.contains("F") || grade.contains("D") || grade.equals("C-"))) {
+                    System.out.println("Cannot enroll: student has already taken course " + courseId
+                            + " with passing grade " + grade + ".");
                     return; // Exit early
                 }
             }
@@ -242,31 +247,41 @@ public class Registrar {
             PreparedStatement prereqStmt = connection.prepareStatement(prereqSql);
             prereqStmt.setString(1, courseId);
             rs = prereqStmt.executeQuery();
-            if (rs.next()) {
-                String prereq = rs.getString("prereq");
-                if (prereq != null && !prereq.isEmpty()) {
-                    String[] prereqs = prereq.split(",");
-                    for (String p : prereqs) {
-                        String checkPrereqSql = "SELECT grade FROM has_taken WHERE perm = ? AND course_num = ? AND yr_qtr = ?";
-                        PreparedStatement checkPrereqStmt = connection.prepareStatement(checkPrereqSql);
-                        checkPrereqStmt.setString(1, studentId);
-                        checkPrereqStmt.setString(2, p.trim());
-                        checkPrereqStmt.setString(3, courseYrQtr);
-                        ResultSet prereqRs = checkPrereqStmt.executeQuery();
-                        if (!prereqRs.next() || !prereqRs.getString("grade").matches("[A-C]")) {
-                            System.out.println("Cannot enroll: student has not completed prerequisite " + p.trim()
-                                    + " with passing grade.");
-                            return; // Exit early
-                        }
+            rs.next();
+            String prereq = rs.getString("prereq");
+
+            String takenCourseSql = "SELECT grade, course_num FROM has_taken WHERE perm = ?";
+            PreparedStatement takenCourseStmt = connection.prepareStatement(takenCourseSql);
+            takenCourseStmt.setString(1, studentId);
+            ResultSet takenCourseRS = takenCourseStmt.executeQuery();
+
+            while (takenCourseRS.next() && prereq != null) {
+                String takenCourse = takenCourseRS.getString("course_num");
+                String takenGrade = takenCourseRS.getString("grade");
+                if (prereq.contains(takenCourse)) {
+                    // Check if the taken course has a passing grade
+                    if (!(takenGrade.contains("F") || takenGrade.contains("D") || takenGrade.equals("C-"))) {
+                        // Remove the prerequisite from the array
+                        prereq = prereq.replace(takenCourse, "").trim();
                     }
                 }
+                if (prereq.isEmpty()) {
+                    break; // No more prerequisites to check
+                }
+            }
+
+            if (prereq != null && !prereq.isEmpty()) {
+                System.out.println(
+                        "Cannot enroll: student has not completed prerequisite courses with passing grade: " + prereq);
+                return; // Exit early
             }
 
             // Step 5: Check course capacity
             error = "Error retrieving course cap: ";
             String capSql = "SELECT cap FROM Course_offering WHERE course_num = ?";
             int courseCap = 0;
-            PreparedStatement capStmt = connection.prepareStatement(capSql);
+            PreparedStatement capStmt = connection
+                    .prepareStatement(capSql);
             capStmt.setString(1, courseId);
             rs = capStmt.executeQuery();
             if (rs.next()) {
@@ -280,7 +295,8 @@ public class Registrar {
             error = "Error counting enrolled students: ";
             String enrolledCountSql = "SELECT COUNT(*) AS enrolled FROM is_taking WHERE course_num = ? AND yr_qtr = ?";
             int enrolled = 0;
-            PreparedStatement enrolledCountStmt = connection.prepareStatement(enrolledCountSql);
+            PreparedStatement enrolledCountStmt = connection.prepareStatement(
+                    enrolledCountSql);
             enrolledCountStmt.setString(1, courseId);
             enrolledCountStmt.setString(2, courseYrQtr);
             rs = enrolledCountStmt.executeQuery();
@@ -296,14 +312,15 @@ public class Registrar {
             // Step 8: Insert into is_taking table
             error = "Error inserting into is_taking: ";
             String sql = "INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (?, ?, ?)";
-            PreparedStatement pstmt = connection.prepareStatement(sql);
+            PreparedStatement pstmt = connection.prepareStatement(
+                    sql);
             pstmt.setString(1, studentId);
             pstmt.setString(2, courseId);
             pstmt.setString(3, courseYrQtr); // Assuming current year and quarter
             int rowsInserted = pstmt.executeUpdate();
             if (rowsInserted > 0) {
                 System.out.println(
-                        "Student" + studentId + " added to course " + courseId + " " + courseYrQtr + " successfully.");
+                        "Student " + studentId + " added to course " + courseId + " " + courseYrQtr + " successfully.");
             }
         } catch (SQLException e) {
             System.err.println(error + e.getMessage());
