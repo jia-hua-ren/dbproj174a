@@ -1,17 +1,22 @@
+
 import java.sql.*;
 import java.util.*;
 import java.io.*;
+import java.security.MessageDigest;
 
 import oracle.jdbc.pool.OracleDataSource;
 import oracle.jdbc.OracleConnection;
 
 public class goldInterface {
+
     static String DB_URL = "";
     final static String DB_USER = "ADMIN";
     static String DB_PASSWORD = "";
     static OracleConnection connection;
-
+    static Scanner scanner = new Scanner(System.in);
+    static String currentQuarter = "25 S"; // Assuming a specific year and quarter
     // Connect to the database
+
     public static void main(String[] args) {
         // Create a connection to the database
         try {
@@ -21,8 +26,21 @@ public class goldInterface {
             System.out.println(e);
             return; // Exit if connection fails
         }
+        // First force user to login 
+        String studentName = "";
+        while (true) {
+            try {
+                studentName = login();
+                break;
+            } catch (Exception e) {
+                System.out.println("An error occurred during login, please try again.");
+                System.out.println(e);
+                return; // Exit if login fails
+            }
+        }
+
         // Find out what action the user wants to take
-        System.out.println("Welcome to the Gold Interface!");
+        System.out.println("Welcome to the Gold Interface " + studentName + "!");
         System.out.println("Please choose an action:");
         System.out.println("1. Add a Course");
         System.out.println("2. Drop a Course");
@@ -98,28 +116,54 @@ public class goldInterface {
 
     }
 
-    public static void login(Connection connection) {
+    public static String login() throws Exception {
         // Implement login logic here
         // For example, you can use a Scanner to read user input for username and
         // password
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter username: ");
-        String username = scanner.nextLine();
+        String sname = "";
 
-        // First validate that the username works
+        // Check that the username and password match valid entries in the database
         while (true) {
-            // Test the username
+            System.out.print("Enter perm number: ");
+            String perm = scanner.nextLine();
+
+            System.out.print("Enter pin: ");
+            String pin = scanner.nextLine();
+
+            // Ensure that perm and pin are both integers 
+            while (!perm.matches("\\d+") || !pin.matches("\\d+")) {
+                System.out.println("Invalid input. Please enter numeric values for perm number and pin.");
+                System.out.print("Enter perm number: ");
+                perm = scanner.nextLine();
+                System.out.print("Enter pin: ");
+                pin = scanner.nextLine();
+            }
+            // Hash the pin for security 
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(String.valueOf(pin).getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            String hashedPin = hexString.toString();
             try {
                 PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT * FROM users WHERE username = ?");
-                preparedStatement.setString(1, username);
+                        "SELECT sname FROM students WHERE perm = ? AND pin = ?");
+                preparedStatement.setString(1, perm);
+                preparedStatement.setString(2, hashedPin);
                 ResultSet resultSet = preparedStatement.executeQuery();
 
-                if (!resultSet.next()) {
-                    System.out.println("Username does not exist, try again.");
-                    username = scanner.nextLine();
-                } else {
+                if (resultSet.next()) {
+                    System.out.println("Login successful!");
+                    sname = resultSet.getString("sname");
                     break;
+                    // Proceed with the application logic
+                } else {
+                    System.out.println("Wrong password, try again.");
                 }
             } catch (SQLException e) {
                 System.out.println("SQL ERROR:");
@@ -127,37 +171,7 @@ public class goldInterface {
             }
         }
 
-        System.out.print("Enter password: ");
-        String password = scanner.nextLine();
-
-        // Check that the username and password match valid entries in the database
-        try {
-            PreparedStatement preparedStatement = connection.prepareStatement(
-                    "SELECT * FROM users WHERE username = ? AND password = ?");
-            preparedStatement.setString(1, username);
-            preparedStatement.setString(2, password);
-            ResultSet resultSet = preparedStatement.executeQuery();
-
-            if (resultSet.next()) {
-                System.out.println("Login successful!");
-                // Proceed with the application logic
-            } else {
-                System.out.println("Wrong password, try again.");
-                password = scanner.nextLine();
-                preparedStatement.setString(2, password);
-                resultSet = preparedStatement.executeQuery();
-                if (resultSet.next()) {
-                    System.out.println("Login successful!");
-                    // Proceed with the application logic
-                } else {
-                    System.out.println("Invalid username or password.");
-                }
-            }
-        } catch (SQLException e) {
-            System.out.println("SQL ERROR:");
-            System.out.println(e);
-        }
-
+        return sname;
     }
 
     public static void addCourse() {
@@ -183,6 +197,7 @@ public class goldInterface {
             } catch (SQLException e) {
                 System.out.println("SQL ERROR:");
                 System.out.println(e);
+                return;
             }
         }
         // Read in the course name
@@ -222,13 +237,6 @@ public class goldInterface {
                         // prerequisites are met
                         System.out.println("Checking prerequisites for the course...");
                         // Sleep for a second to simulate checking prerequisites
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            System.out.println("An error occurred while checking prerequisites.");
-                            System.out.println("SQL ERROR:");
-                            System.out.println(e);
-                        }
                         // Prepare a statement to get the prerequisites for the course
                         PreparedStatement preqreqStatement = connection.prepareStatement(
                                 "SELECT prereq FROM courses WHERE course_num = ?");
@@ -289,7 +297,7 @@ public class goldInterface {
                 System.out.println("An error occurred while adding the course.");
                 System.out.println("SQL ERROR:");
                 System.out.println(e);
-                break;
+                return;
             }
         }
     }
@@ -342,16 +350,10 @@ public class goldInterface {
                     // We got a valid pairing, we can drop the course
                     // Have to delete the course from the is_taking table
                     PreparedStatement dropCourseStatement = connection.prepareStatement(
-                            "DELETE FROM courses WHERE course_num = ? AND perm = ?");
+                            "DELETE FROM is_taking WHERE course_num = ? AND perm = ?");
                     dropCourseStatement.setString(1, courseNum);
                     dropCourseStatement.setString(2, permNumber);
                     dropCourseStatement.executeUpdate();
-
-                    // Have to reduce the number of enrolled students in the course by 1
-                    PreparedStatement updateEnrolledStatement = connection.prepareStatement(
-                            "UPDATE courses SET enrolled = enrolled - 1 WHERE course_num = ?");
-                    updateEnrolledStatement.setString(1, courseNum);
-                    updateEnrolledStatement.executeUpdate();
 
                     System.out.println("Course dropped successfully!");
                     break;
@@ -365,6 +367,142 @@ public class goldInterface {
             }
         }
         scanner.close();
+    }
+
+    public static void listCurrentQuarterCourses() {
+        // First get the perm number of the user
+        System.out.print("Enter your perm number: ");
+        // Validate the perm number
+        while (!scanner.hasNextInt()) {
+            System.out.println("Invalid perm number format. Please enter a valid perm number.");
+            scanner.next(); // Clear the invalid input
+        }
+        String permNumber = scanner.nextLine();
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    "SELECT * FROM students WHERE perm = ?");
+            preparedStatement.setString(1, permNumber);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (!resultSet.next()) {
+                System.out.println("Perm number does not exist, try again.");
+                while (!scanner.hasNextInt()) {
+                    System.out.println("Invalid perm number format. Please enter a valid perm number.");
+                    scanner.next(); // Clear the invalid input
+                }
+                permNumber = scanner.nextLine();
+                preparedStatement.setString(1, permNumber);
+                resultSet = preparedStatement.executeQuery();
+
+            }
+
+        } catch (Exception e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+            return;
+        }
+        // went through validation, now list courses by looking at the is_taking table
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    "SELECT course_num FROM is_taking WHERE perm = ? AND yr_qtr = ?");
+            preparedStatement.setString(1, permNumber);
+            preparedStatement.setString(2, currentQuarter); // Assuming currentQuarter is defined
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            System.out.println("Courses enrolled in for " + currentQuarter + ":");
+            while (resultSet.next()) {
+                String courseNum = resultSet.getString("course_num");
+                System.out.println(courseNum);
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+        }
+    }
+
+    public static void viewPreviousQuarterGrades() {
+        // First calculate the previous quarter based on the current quarter
+        String previousQuarter = "";
+        if (currentQuarter.charAt(currentQuarter.length() - 1) == 'S') {
+            previousQuarter = "25 W";
+        } else if (currentQuarter.charAt(currentQuarter.length() - 1) == 'W') {
+            previousQuarter = "24 F";
+        } else {
+            previousQuarter = "24 S";
+        }
+
+        // Now get the perm number of the user
+        // First get the perm number of the user
+        System.out.print("Enter your perm number: ");
+        // Validate the perm number
+        while (!scanner.hasNextInt()) {
+            System.out.println("Invalid perm number format. Please enter a valid perm number.");
+            scanner.next(); // Clear the invalid input
+        }
+        String permNumber = scanner.nextLine();
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    "SELECT * FROM students WHERE perm = ?");
+            preparedStatement.setString(1, permNumber);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (!resultSet.next()) {
+                System.out.println("Perm number does not exist, try again.");
+                while (!scanner.hasNextInt()) {
+                    System.out.println("Invalid perm number format. Please enter a valid perm number.");
+                    scanner.next(); // Clear the invalid input
+                }
+                permNumber = scanner.nextLine();
+                preparedStatement.setString(1, permNumber);
+                resultSet = preparedStatement.executeQuery();
+
+            }
+
+        } catch (Exception e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+            return;
+        }
+        // went through validation, now list courses by looking at the has_taken table
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    "SELECT course_num, grade FROM has_taken WHERE perm = ? AND yr_qtr = ?"
+            );
+            // Now substitute values in 
+            preparedStatement.setString(1, permNumber);
+            preparedStatement.setString(2, previousQuarter);
+
+            // Execute the query
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (!resultSet.next()) {
+                System.out.println("No courses found for the previous quarter: " + previousQuarter);
+                return;
+            }
+            System.out.println("Courses and grades for " + previousQuarter + ":");
+            String courseNum = resultSet.getString("course_num");
+            String grade = resultSet.getString("grade");
+            System.out.println("Course: " + courseNum + ", Grade: " + grade);
+            while (resultSet.next()) {
+                courseNum = resultSet.getString("course_num");
+                grade = resultSet.getString("grade");
+                System.out.println("Course: " + courseNum + ", Grade: " + grade);
+            }
+        } catch (Exception e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+            return;
+
+        }
+
+    }
+
+    public static void checkRequirements() {
+
+    }
+
+    public static void makeStudyPlan() {
+
+    }
+
+    public static void changePin() {
     }
 
 }
