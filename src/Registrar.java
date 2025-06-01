@@ -415,37 +415,197 @@ public class Registrar {
     }
 
     private static void listCoursesForStudent() {
-        // just select all courses taken, and probably add a current course section as
-        // well
-
         System.out.print("Enter student ID: ");
+        String error = "";
         String studentId = scanner.nextLine().trim();
-        // TODO: Implement DB query logic
-        System.out.println("Courses for student " + studentId + ":");
+
+        try {
+            // Step 1: Check if student exists
+            error = "Error checking student: ";
+            String checkSql = "SELECT 1 FROM Students WHERE perm = ?";
+            PreparedStatement checkStmt = connection.prepareStatement(checkSql);
+            checkStmt.setInt(1, Integer.parseInt(studentId));
+            ResultSet rs = checkStmt.executeQuery();
+            if (!rs.next()) {
+                System.out.println("Student with ID " + studentId + " does not exist.");
+                return; // Exit early
+            }
+
+            // Step 2: Print course taken by student
+            error = "Error retrieving taken courses: ";
+            String hasTakenSql = "SELECT course_num, yr_qtr FROM has_taken WHERE perm = ?";
+            PreparedStatement hasTakenStmt = connection.prepareStatement(hasTakenSql);
+            hasTakenStmt.setInt(1, Integer.parseInt(studentId));
+            rs = hasTakenStmt.executeQuery();
+
+            ResultSetMetaData rsmd = rs.getMetaData();
+            int columnCount = rsmd.getColumnCount();
+
+            if (!rs.isBeforeFirst()) {
+                System.out.println("No courses found for student " + studentId + ".");
+                return; // Exit early
+            }
+
+            System.out.println("Courses for student " + studentId + ":");
+
+            // Print column names
+            for (int i = 1; i <= columnCount; i++) {
+                System.out.print(rsmd.getColumnName(i) + "\t");
+            }
+            System.out.println();
+
+            // Print each row
+            while (rs.next()) {
+                for (int i = 1; i <= columnCount; i++) {
+                    System.out.print(rs.getString(i) + "\t");
+                }
+                System.out.println();
+            }
+
+        } catch (SQLException e) {
+            System.err.println(error + e.getMessage());
+            return;
+        }
     }
 
     private static void listGradesForStudent() {
-        // which quarter?
-        // specify yr and qtr or say all
-
         System.out.print("Enter student ID: ");
+        String error = "";
         String studentId = scanner.nextLine().trim();
 
-        System.out.print(
-                "Enter course year/qtr (In this format: yy F/W/S, where yy is last 2 digits of year followed by the quarter): ");
-        System.out.print("or enter 'all' for all quarters: ");
-        String courseYrQtr = scanner.nextLine().trim();
+        System.out.print("Enter quarter (e.g., '25 S' for Spring 2025, or 'all' for all quarters): ");
+        String quarterInput = scanner.nextLine().trim();
 
-        // TODO: Implement DB query for grades in previous quarter
-        System.out.println("Grades for student " + studentId + " (previous quarter):");
+        try {
+            // Step 1: Check if student exists
+            error = "Error checking student: ";
+            String checkSql = "SELECT 1 FROM Students WHERE perm = ?";
+            PreparedStatement checkStmt = connection.prepareStatement(checkSql);
+            checkStmt.setInt(1, Integer.parseInt(studentId));
+            ResultSet rs = checkStmt.executeQuery();
+            if (!rs.next()) {
+                System.out.println("Student with ID " + studentId + " does not exist.");
+                return; // Exit early
+            }
+
+            // Step 2: Print course and grades taken by student
+            error = "Error retrieving taken courses: ";
+            String hasTakenSql;
+            PreparedStatement hasTakenStmt;
+            if (quarterInput.equalsIgnoreCase("all")) {
+                hasTakenSql = "SELECT grade, course_num, yr_qtr FROM has_taken WHERE perm = ?";
+                hasTakenStmt = connection.prepareStatement(hasTakenSql);
+                hasTakenStmt.setInt(1, Integer.parseInt(studentId));
+            } else if (quarterInput.matches("\\d\\d [FSW]")) {
+                hasTakenSql = "SELECT grade, course_num FROM has_taken WHERE perm = ? AND yr_qtr = ?";
+                hasTakenStmt = connection.prepareStatement(hasTakenSql);
+                hasTakenStmt.setInt(1, Integer.parseInt(studentId));
+                hasTakenStmt.setString(2, quarterInput);
+            } else {
+                System.out.println(
+                        "Invalid quarter format. Please use '25 S' for Spring 2025 or 'all' for all quarters.");
+                return; // Exit early
+            }
+
+            rs = hasTakenStmt.executeQuery();
+
+            ResultSetMetaData rsmd = rs.getMetaData();
+            int columnCount = rsmd.getColumnCount();
+
+            if (!rs.isBeforeFirst()) {
+                System.out.println("No courses found for student " + studentId + ".");
+                return; // Exit early
+            }
+
+            System.out.println("Courses for student " + studentId + " for " + quarterInput + " quarter:");
+
+            // Print column names
+            for (int i = 1; i <= columnCount; i++) {
+                System.out.print(rsmd.getColumnName(i) + "\t");
+            }
+            System.out.println();
+
+            // Print each row
+            while (rs.next()) {
+                for (int i = 1; i <= columnCount; i++) {
+                    System.out.print(rs.getString(i) + "\t");
+                }
+                System.out.println();
+            }
+
+        } catch (SQLException e) {
+            System.err.println(error + e.getMessage());
+            return;
+        }
     }
 
     private static void generateClassList() {
-        // just list all course offerings for a course?
+        // list all students in a course
         System.out.print("Enter course ID: ");
         String courseId = scanner.nextLine().trim();
-        // TODO: Implement DB query logic
-        System.out.println("Class list for course " + courseId + ":");
+
+        System.out.print("Enter quarter (e.g., '25 S' for Spring 2025): ");
+        String quarterInput = scanner.nextLine().trim();
+
+        if (!quarterInput.matches("\\d\\d [FSW]")) {
+            System.out.println("Invalid quarter format. Please use '25 S' for Spring 2025.");
+            return; // Exit early
+        }
+
+        // Step 1: Check if course exists
+        String error = "";
+        try {
+            error = "Error checking course: ";
+            String courseCheckSql = "SELECT 1 FROM Course_offering WHERE course_num = ? AND yr_qtr = ?";
+            PreparedStatement courseCheckStmt = connection.prepareStatement(courseCheckSql);
+            courseCheckStmt.setString(1, courseId);
+            courseCheckStmt.setString(2, quarterInput);
+            ResultSet rs = courseCheckStmt.executeQuery();
+            if (!rs.next()) {
+                System.out.println("Course with ID " + courseId + " for " + quarterInput + " does not exist.");
+                return; // Exit early
+            }
+
+            // Step 2: Retrieve class list
+            error = "Error retrieving class list: ";
+
+            String classListSql;
+            PreparedStatement classListStmt;
+            // current quarter is hardcoded as "25 S" in the requirements
+            if (quarterInput.equals("25 S")) {
+                classListSql = "SELECT S.perm, S.sname FROM is_taking I, Students S WHERE I.perm = S.perm AND course_num = ? AND yr_qtr = ?";
+            } else {
+                classListSql = "SELECT S.perm, S.sname, I.grade FROM has_taken I, Students S WHERE I.perm = S.perm AND course_num = ? AND yr_qtr = ?";
+            }
+
+            classListStmt = connection.prepareStatement(classListSql);
+            classListStmt.setString(1, courseId);
+            classListStmt.setString(2, quarterInput);
+            rs = classListStmt.executeQuery();
+            ResultSetMetaData rsmd = rs.getMetaData();
+            int columnCount = rsmd.getColumnCount();
+            if (!rs.isBeforeFirst()) {
+                System.out.println("No students found for course " + courseId + " in " + quarterInput + ".");
+                return; // Exit early
+            }
+            System.out.println("Class list for course " + courseId + " in " + quarterInput + ":");
+            // Print column names
+            for (int i = 1; i <= columnCount; i++) {
+                System.out.print(rsmd.getColumnName(i) + "\t");
+            }
+            System.out.println();
+            // Print each row
+            while (rs.next()) {
+                for (int i = 1; i <= columnCount; i++) {
+                    System.out.print(rs.getString(i) + "\t");
+                }
+                System.out.println();
+            }
+
+        } catch (SQLException e) {
+            System.err.println(error + e.getMessage());
+            return;
+        }
     }
 
     private static void enterGradesFromFile() {
