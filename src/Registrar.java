@@ -61,12 +61,12 @@ public class Registrar {
                     case "8":
                         generateGradeMailer();
                         break;
-                    case "9":
-                        testPrintMajors();
-                        break;
-                    case "10":
-                        testPrintCourseOfferings();
-                        break;
+                    // case "9":
+                    // testPrintMajors();
+                    // break;
+                    // case "10":
+                    // testPrintCourseOfferings();
+                    // break;
                     case "0":
                         running = false;
                         break;
@@ -104,61 +104,61 @@ public class Registrar {
         System.out.println("6. Enter grades from file");
         System.out.println("7. Request transcript");
         System.out.println("8. Generate grade mailer for all students");
-        System.out.println("9. Test print majors (for debugging)");
-        System.out.println("10. Test print course offerings (for debugging)");
+        // System.out.println("9. Test print majors (for debugging)");
+        // System.out.println("10. Test print course offerings (for debugging)");
         System.out.println("0. Exit");
         System.out.print("Enter your choice: ");
     }
 
-    private static void testPrintMajors() {
-        String sql = "SELECT * FROM Majors";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            ResultSet rs = pstmt.executeQuery();
-            ResultSetMetaData rsmd = rs.getMetaData();
-            int columnCount = rsmd.getColumnCount();
+    // private static void testPrintMajors() {
+    // String sql = "SELECT * FROM Majors";
+    // try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+    // ResultSet rs = pstmt.executeQuery();
+    // ResultSetMetaData rsmd = rs.getMetaData();
+    // int columnCount = rsmd.getColumnCount();
 
-            // Print column names
-            for (int i = 1; i <= columnCount; i++) {
-                System.out.print(rsmd.getColumnName(i) + "\t");
-            }
-            System.out.println();
+    // // Print column names
+    // for (int i = 1; i <= columnCount; i++) {
+    // System.out.print(rsmd.getColumnName(i) + "\t");
+    // }
+    // System.out.println();
 
-            // Print each row
-            while (rs.next()) {
-                for (int i = 1; i <= columnCount; i++) {
-                    System.out.print(rs.getString(i) + "\t");
-                }
-                System.out.println();
-            }
-        } catch (SQLException e) {
-            System.err.println("Error: " + e.getMessage());
-        }
-    }
+    // // Print each row
+    // while (rs.next()) {
+    // for (int i = 1; i <= columnCount; i++) {
+    // System.out.print(rs.getString(i) + "\t");
+    // }
+    // System.out.println();
+    // }
+    // } catch (SQLException e) {
+    // System.err.println("Error: " + e.getMessage());
+    // }
+    // }
 
-    private static void testPrintCourseOfferings() {
-        String sql = "SELECT * FROM course_offering";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            ResultSet rs = pstmt.executeQuery();
-            ResultSetMetaData rsmd = rs.getMetaData();
-            int columnCount = rsmd.getColumnCount();
+    // private static void testPrintCourseOfferings() {
+    // String sql = "SELECT * FROM course_offering";
+    // try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+    // ResultSet rs = pstmt.executeQuery();
+    // ResultSetMetaData rsmd = rs.getMetaData();
+    // int columnCount = rsmd.getColumnCount();
 
-            // Print column names
-            for (int i = 1; i <= columnCount; i++) {
-                System.out.print(rsmd.getColumnName(i) + "\t");
-            }
-            System.out.println();
+    // // Print column names
+    // for (int i = 1; i <= columnCount; i++) {
+    // System.out.print(rsmd.getColumnName(i) + "\t");
+    // }
+    // System.out.println();
 
-            // Print each row
-            while (rs.next()) {
-                for (int i = 1; i <= columnCount; i++) {
-                    System.out.print(rs.getString(i) + "\t");
-                }
-                System.out.println();
-            }
-        } catch (SQLException e) {
-            System.err.println("Error: " + e.getMessage());
-        }
-    }
+    // // Print each row
+    // while (rs.next()) {
+    // for (int i = 1; i <= columnCount; i++) {
+    // System.out.print(rs.getString(i) + "\t");
+    // }
+    // System.out.println();
+    // }
+    // } catch (SQLException e) {
+    // System.err.println("Error: " + e.getMessage());
+    // }
+    // }
 
     private static void addStudentToCourse() {
         System.out.print("Enter student ID: ");
@@ -648,8 +648,76 @@ public class Registrar {
 
         System.out.print("Enter student ID: ");
         String studentId = scanner.nextLine().trim();
-        // TODO: Query grades and course history
-        System.out.println("Transcript for student " + studentId + ":");
+
+        // Step 1: Check if student exists
+        String error = "";
+        try {
+            error = "Error checking student: ";
+            String checkSql = "SELECT sname, mname FROM Students WHERE perm = ?";
+            PreparedStatement checkStmt = connection.prepareStatement(checkSql);
+            checkStmt.setInt(1, Integer.parseInt(studentId));
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (!rs.isBeforeFirst()) {
+                System.out.println("Student with ID " + studentId + " does not exist.");
+                return; // Exit early
+            }
+
+            rs.next();
+            String studentName = rs.getString("sname");
+            String majorName = rs.getString("mname");
+            System.out.println(
+                    "Transcript for student " + studentId + " (" + studentName + ", Major: " + majorName + ")");
+
+            System.out.println();
+
+            // Step 2: Retrieve student details
+            error = "Error retrieving student current quarter details: ";
+            String currentQuarterSql = "SELECT course_num FROM is_taking WHERE perm = ?";
+
+            PreparedStatement currentQuarterStmt = connection.prepareStatement(currentQuarterSql);
+            currentQuarterStmt.setInt(1, Integer.parseInt(studentId));
+            rs = currentQuarterStmt.executeQuery();
+            System.out.println("Current courses for 25 S: ");
+            if (!rs.isBeforeFirst()) {
+                System.out.println("-");
+            } else {
+                while (rs.next()) {
+                    System.out.println("Course: " + rs.getString("course_num"));
+                }
+            }
+
+            // get all past quarters
+            String pastQuartersSql = "SELECT DISTINCT yr_qtr FROM course_offering WHERE yr_qtr <> '25 S'";
+            PreparedStatement pastQuartersStmt = connection.prepareStatement(pastQuartersSql);
+            ResultSet pastQuartersRS = pastQuartersStmt.executeQuery();
+
+            while (pastQuartersRS.next()) {
+                String quarter = pastQuartersRS.getString("yr_qtr");
+                System.out.println("Past quarter: " + quarter);
+
+                // Step 3: Retrieve courses and grades for each past quarter
+                String pastCoursesSql = "SELECT course_num, grade FROM has_taken WHERE perm = ? AND yr_qtr = ?";
+                PreparedStatement pastCoursesStmt = connection.prepareStatement(pastCoursesSql);
+                pastCoursesStmt.setInt(1, Integer.parseInt(studentId));
+                pastCoursesStmt.setString(2, quarter);
+                ResultSet pastCoursesRS = pastCoursesStmt.executeQuery();
+
+                if (!pastCoursesRS.isBeforeFirst()) {
+                    System.out.println("-");
+                } else {
+                    while (pastCoursesRS.next()) {
+                        String courseNum = pastCoursesRS.getString("course_num");
+                        String grade = pastCoursesRS.getString("grade");
+                        System.out.println("Course: " + courseNum + ", Grade: " + grade);
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println(error + e.getMessage());
+            return;
+        }
     }
 
     private static void generateGradeMailer() {
