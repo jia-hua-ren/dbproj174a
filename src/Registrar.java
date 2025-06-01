@@ -723,8 +723,60 @@ public class Registrar {
     private static void generateGradeMailer() {
         // For all student, for the quarter chosen generate a mailer like “(name), your
         // grade for CSxxx is A, your grade for ECExxx is A etc.”
-        // for each student maybe put it in a file with their name _ perm?
-        // TODO: Fetch all students and generate mailer
-        System.out.println("Grade mailer generated for all students.");
+
+        System.out.print("Enter quarter (e.g., '25 S' for Spring 2025): ");
+        String quarterInput = scanner.nextLine().trim();
+
+        String error = "";
+
+        if (!quarterInput.matches("\\d\\d [FSW]")) {
+            System.out.println("Invalid quarter format. Please use '25 S' for Spring 2025.");
+            return; // Exit early
+        }
+
+        try {
+            error = "Error retrieving all students: ";
+            String studentSql = "SELECT perm, sname FROM Students";
+            PreparedStatement studentStmt = connection.prepareStatement(studentSql);
+
+            ResultSet rs = studentStmt.executeQuery();
+            if (!rs.isBeforeFirst()) {
+                System.out.println("No students found.");
+                return; // Exit early
+            }
+            while (rs.next()) {
+                int studentId = rs.getInt("perm");
+                String studentName = rs.getString("sname");
+
+                // Retrieve grades for the specified quarter
+                error = "Error retrieving courses taken and grades: ";
+                String gradesSql = "SELECT course_num, grade FROM has_taken WHERE perm = ? AND yr_qtr = ?";
+                PreparedStatement gradesStmt = connection.prepareStatement(gradesSql);
+                gradesStmt.setInt(1, studentId);
+                gradesStmt.setString(2, quarterInput);
+                ResultSet gradesRS = gradesStmt.executeQuery();
+
+                StringBuilder mailerContent = new StringBuilder(
+                        studentName + ", your grades for " + quarterInput + " are:\n");
+                boolean hasGrades = false;
+
+                while (gradesRS.next()) {
+                    hasGrades = true;
+                    String courseNum = gradesRS.getString("course_num");
+                    String grade = gradesRS.getString("grade");
+                    mailerContent.append("Course: ").append(courseNum).append(", Grade: ").append(grade).append("\n");
+                }
+
+                if (hasGrades) {
+                    System.out.println(mailerContent.toString());
+                } else {
+                    System.out.println(studentName + ", you have no grades for " + quarterInput + ".\n");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println(error + e.getMessage());
+            return;
+        }
+
     }
 }
