@@ -2,8 +2,6 @@ import java.sql.*;
 import java.io.*;
 import java.util.*;
 
-import javax.xml.transform.SourceLocator;
-
 import oracle.jdbc.pool.OracleDataSource;
 import oracle.jdbc.OracleConnection;
 
@@ -609,34 +607,79 @@ public class Registrar {
     }
 
     private static void enterGradesFromFile() {
-        /*
-         * Follow this format for files
-         * then go through each grade and insert/update in DB
-         * {
-         * "course_code": "56789",
-         * "course_quarter": "w25",
-         * "grades": [
-         * { "perm": "12345", "grade": "B" },
-         * { "perm": "14682", "grade": "B" },
-         * ....
-         * ]
-         * }
-         */
-
         System.out.print("Enter filename: ");
         String filename = scanner.nextLine().trim();
 
         try (BufferedReader fileReader = new BufferedReader(new FileReader(filename))) {
             String line;
-            while ((line = fileReader.readLine()) != null) {
-                String[] parts = line.split(",");
-                String studentId = parts[0].trim();
-                String grade = parts[1].trim();
-                // TODO: Insert/update grade in DB
-                System.out.println("Processed grade for " + studentId + ": " + grade);
+
+            line = fileReader.readLine();
+            if (line == null || !line.startsWith("Course code:")) {
+                System.err.println("Invalid file format: missing course code");
+                return;
             }
+            String courseCode = line.split(":")[1].trim();
+
+            // Read course quarter
+            line = fileReader.readLine();
+            if (line == null || !line.startsWith("Course quarter:")) {
+                System.err.println("Invalid file format: missing course quarter");
+                return;
+            }
+            String courseQuarter = line.split(":")[1].trim();
+
+            System.out.println("Processing grades for course " + courseCode + " in quarter " + courseQuarter);
+
+            // Skip header line
+            fileReader.readLine(); // perm----grade
+
+            String insertSql = "INSERT INTO has_taken (perm, course_num, yr_qtr, grade) " +
+                    "SELECT ?, ?, ?, ? FROM DUAL " +
+                    "WHERE NOT EXISTS (" +
+                    "  SELECT 1 FROM has_taken WHERE perm = ? AND course_num = ? AND yr_qtr = ?)";
+
+            PreparedStatement stmt = connection.prepareStatement(insertSql);
+
+            // UPDATE if already exists
+            String updateSql = "UPDATE has_taken SET grade = ? WHERE perm = ? AND course_num = ? AND yr_qtr = ?";
+            PreparedStatement updateStmt = connection.prepareStatement(updateSql);
+
+            while ((line = fileReader.readLine()) != null) {
+                if (line.trim().isEmpty())
+                    continue;
+
+                String[] parts = line.split("----");
+                if (parts.length != 2) {
+                    System.err.println("Skipping malformed line: " + line);
+                    continue;
+                }
+
+                String perm = parts[0].trim();
+                String grade = parts[1].trim();
+
+                stmt.setInt(1, Integer.parseInt(perm));
+                stmt.setString(2, courseCode);
+                stmt.setString(3, courseQuarter);
+                stmt.setString(4, grade);
+                stmt.setInt(5, Integer.parseInt(perm));
+                stmt.setString(6, courseCode);
+                stmt.setString(7, courseQuarter);
+
+                stmt.executeUpdate();
+
+                updateStmt.setString(1, grade);
+                updateStmt.setInt(2, Integer.parseInt(perm));
+                updateStmt.setString(3, courseCode);
+                updateStmt.setString(4, courseQuarter);
+
+                updateStmt.executeUpdate();
+                System.out.println("Processed grade for " + perm + ": " + grade);
+            }
+
         } catch (IOException e) {
             System.err.println("Failed to read file: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("Database error: " + e.getMessage());
         }
     }
 
