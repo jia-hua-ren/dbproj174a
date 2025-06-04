@@ -536,7 +536,47 @@ public class goldInterface {
                 winter.remove(removed_course);
             }
         }
-
+        Iterator<String> springIterator = spring.iterator();
+        while (springIterator.hasNext()) {
+            boolean notMet = false;
+            String course = springIterator.next();
+            if (course.equals("CS170")) {
+                List<String> prerequisites = new ArrayList<>(Arrays.asList("CS130", "CS154"));
+                for (String pre : prerequisites) {
+                    if (winter.contains(pre)) {
+                        notMet = true;
+                    }
+                }
+                if (!notMet) {
+                    winter.add(course);
+                    springIterator.remove();
+                }
+            }
+            if (course.equals("CS160")) {
+                List<String> prerequisites = new ArrayList<>(Arrays.asList("CS026", "CS130"));
+                for (String pre : prerequisites) {
+                    if (winter.contains(pre)) {
+                        notMet = true;
+                    }
+                }
+                if (!notMet) {
+                    winter.add(course);
+                    springIterator.remove();
+                }
+            }
+            if (course.equals("EC154")) {
+                List<String> prerequisites = new ArrayList<>(Arrays.asList("EC152", "CS026"));
+                for (String pre : prerequisites) {
+                    if (winter.contains(pre)) {
+                        notMet = true;
+                    }
+                }
+                if (!notMet) {
+                    winter.add(course);
+                    springIterator.remove();
+                }
+            }
+        }
         // Compress the study plans 
         if (fall.size() + winter.size() + spring.size() == 0) {
             // Already met the requirements 
@@ -618,7 +658,7 @@ public class goldInterface {
         // Hash the new pin for security
         digest = MessageDigest.getInstance("SHA-256");
         hash = digest.digest(String.valueOf(newPin).getBytes("UTF-8"));
-        hexString = new StringBuilder(); 
+        hexString = new StringBuilder();
         for (byte b : hash) {
             String hex = Integer.toHexString(0xff & b);
             if (hex.length() == 1) {
