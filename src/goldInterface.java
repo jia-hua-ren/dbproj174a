@@ -78,7 +78,12 @@ public class goldInterface {
                     makeStudyPlan(permNumber);
                     break;
                 case 7:
-                    changePin();
+                    try {
+                        changePin(permNumber);
+                    } catch (Exception e) {
+                        System.out.println("An error occurred while changing the PIN.");
+                        System.out.println(e);
+                    }
                     break;
                 case 8:
                     System.out.println("Exiting the application.");
@@ -427,10 +432,10 @@ public class goldInterface {
             String course = iterator.next();
             if (takenCourses.contains(course)) {
                 System.out.println("Required Met: " + course);
-                iterator.remove();  
+                iterator.remove();
             } else if (takingCourses.contains(course)) {
                 System.out.println("Required in Progress " + currentQuarter + " : " + course);
-                iterator.remove();  
+                iterator.remove();
             } else {
                 System.out.println("Required Not Met: " + course);
                 count++;
@@ -562,7 +567,85 @@ public class goldInterface {
 
     }
 
-    public static void changePin() {
+    public static void changePin(String permNumber) throws Exception {
+        // First, ask the user for current pin to validate 
+        System.out.print("Enter current pin: ");
+        String pin = scanner.nextLine();
+        // Hash the current pin for security
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(String.valueOf(pin).getBytes("UTF-8"));
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) {
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+        String hashedPin = hexString.toString();
+
+        // Check if the current pin is correct
+        try {
+            PreparedStatement checkPin = connection.prepareStatement(
+                    "SELECT * FROM students WHERE perm = ? AND pin = ?");
+            checkPin.setString(1, permNumber);
+            checkPin.setString(2, hashedPin);
+            ResultSet resultSet = checkPin.executeQuery();
+            if (!resultSet.next()) {
+                System.out.println("Current pin is incorrect, please try again.");
+                return;
+            }
+        } catch (Exception e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+            return;
+        }
+
+        // Passed to this point, therefore the pin is correct 
+        System.out.print("Enter new pin: ");
+        String newPin = scanner.nextLine();
+        System.out.print("Re-enter new pin: ");
+        String confirmPin = scanner.nextLine();
+        // Validate the new pin
+        while (!newPin.equals(confirmPin)) {
+            System.out.println("New pins do not match, please try again.");
+            System.out.print("Enter new pin: ");
+            newPin = scanner.nextLine();
+            System.out.print("Re-enter new pin: ");
+            confirmPin = scanner.nextLine();
+        }
+
+        // Hash the new pin for security
+        digest = MessageDigest.getInstance("SHA-256");
+        hash = digest.digest(String.valueOf(newPin).getBytes("UTF-8"));
+        hexString = new StringBuilder(); 
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) {
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+        hashedPin = hexString.toString();
+
+        // Update the pin in the database
+        try {
+            PreparedStatement updatePin = connection.prepareStatement(
+                    "UPDATE students SET pin = ? WHERE perm = ?");
+            updatePin.setString(1, hashedPin);
+            updatePin.setString(2, permNumber);
+            int rowsAffected = updatePin.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("PIN changed successfully!");
+            } else {
+                System.out.println("Failed to change PIN, please try again.");
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+            return;
+        }
+
     }
 
 }
