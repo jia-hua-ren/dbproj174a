@@ -75,7 +75,7 @@ public class goldInterface {
                     checkRequirements();
                     break;
                 case 6:
-                    makeStudyPlan();
+                    makeStudyPlan(permNumber);
                     break;
                 case 7:
                     changePin();
@@ -387,10 +387,107 @@ public class goldInterface {
     }
 
     public static void checkRequirements() {
+        // Get the set of classes that the user has already taken 
 
+        // Get the set of classes that the user has to take 
+        // Now, separate the sets into the required classes and elective classes
+        // Check if the required classes are met and if the elective classes are met 
     }
 
-    public static void makeStudyPlan() {
+    public static void makeStudyPlan(String permNumber) {
+        // First make the optimal study schedule 
+        List<String> fall = new ArrayList<>(Arrays.asList("EC010", "CS010", "EC015"));
+        List<String> winter = new ArrayList<>(Arrays.asList("CS026", "CS130", "CS154", "EC152"));
+        List<String> spring = new ArrayList<>(Arrays.asList("CS170", "CS160", "EC154"));
+
+        // Now look at the courses that the user has already taken/is taking 
+        List<String> takenCourses = new ArrayList<>();
+        try {
+            PreparedStatement previousCourses = connection.prepareStatement(
+                    "SELECT course_num FROM has_taken WHERE perm = ?");
+            previousCourses.setString(1, permNumber); // Replace with actual perm number
+            ResultSet resultSet = previousCourses.executeQuery();
+
+            while (resultSet.next()) {
+                takenCourses.add(resultSet.getString("course_num"));
+            }
+
+            PreparedStatement currentCourses = connection.prepareStatement(
+                    "SELECT course_num FROM is_taking WHERE perm = ?");
+            currentCourses.setString(1, permNumber); // Replace with actual perm number
+            ResultSet resultSet2 = currentCourses.executeQuery();
+            while (resultSet2.next()) {
+                takenCourses.add(resultSet2.getString("course_num"));
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+        }
+
+        // Now we have the list of courses that the user has taken 
+        List<String> electives = new ArrayList<>(Arrays.asList(
+                "EC154", "EC152", "EC015", "CS010", "EC010"
+        ));
+        // Find remaining electives that are needed 
+        int special = 0;
+        for (String course : takenCourses) {
+            if (electives.contains(course)) {
+                electives.remove(course);
+            }
+            if (fall.contains(course)) {
+                fall.remove(course);
+            } else if (winter.contains(course)) {
+                winter.remove(course);
+            } else if (spring.contains(course)) {
+                spring.remove(course);
+            } else {
+                special++;
+            }
+        }
+
+        // Special case of CS174 or EC140, remove an elective 
+        for (int i = 0; i < special; i++) {
+            String removed_course = electives.remove(0);
+            if (removed_course.equals("EC154")) {
+                spring.remove(removed_course);
+            } else if (removed_course.equals("EC152")) {
+                winter.remove(removed_course);
+            } else if (removed_course.equals("EC015")) {
+                fall.remove(removed_course);
+            } else if (removed_course.equals("CS010")) {
+                fall.remove(removed_course);
+            } else if (removed_course.equals("EC010")) {
+                winter.remove(removed_course);
+            }
+        }
+
+        // Compress the study plans 
+        if (fall.size() + winter.size() + spring.size() == 0) {
+            // Already met the requirements 
+            System.out.println("You have already met all the requirements!");
+        } else if (fall.size() + winter.size() <= 5 && spring.isEmpty()) {
+            // Can finish within one quarter
+            List<String> allCourses = new ArrayList<>();
+            allCourses.addAll(fall);
+            allCourses.addAll(winter);
+            System.out.println("You will need to take the following courses in the next quarter:");
+            System.out.println("Courses: " + allCourses);
+        } else if (fall.size() + winter.size() <= 5) {
+            // Can finish within two quarters 
+            List<String> allCourses = new ArrayList<>();
+            allCourses.addAll(fall);
+            allCourses.addAll(winter);
+            System.out.println("You will need to take the following courses in the next two quarters:");
+            System.out.println("Fall Quarter: " + allCourses);
+            System.out.println("Winter Quarter: " + spring);
+        } else {
+            // Finish within three quarters
+            System.out.println("You will need to take the following courses in the next three quarters:");
+            System.out.println("Fall Quarter: " + fall);
+            System.out.println("Winter Quarter: " + winter);
+            System.out.println("Spring Quarter: " + spring);
+        }
+        return;
 
     }
 
