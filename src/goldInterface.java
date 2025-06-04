@@ -42,9 +42,9 @@ public class goldInterface {
         }
         studentName = array[0];
         permNumber = array[1];
+        System.out.println("Welcome to the Gold Interface " + studentName + "!");
 
         while (true) { // Find out what action the user wants to take
-            System.out.println("Welcome to the Gold Interface " + studentName + "!");
             System.out.println("Please choose an action:");
             System.out.println("1. Add a Course");
             System.out.println("2. Drop a Course");
@@ -278,7 +278,6 @@ public class goldInterface {
                     }
                 }
             } catch (SQLException e) {
-                scanner.close();
                 System.out.println("An error occurred while adding the course.");
                 System.out.println("SQL ERROR:");
                 System.out.println(e);
@@ -288,9 +287,27 @@ public class goldInterface {
     }
 
     public static void dropCourse(String permNumber) {
+        // First, ensure that the number of courses the user is enrolled in is greater than 1 
+        try {
+            PreparedStatement numCourses = connection.prepareStatement(
+                    "SELECT COUNT(*) AS num_courses FROM is_taking WHERE perm = ?");
+            numCourses.setString(1, permNumber);
+            ResultSet resultSet = numCourses.executeQuery();
+            resultSet.next();
+            if (resultSet.getInt("num_courses") <= 1) {
+                System.out.println("You must be enrolled in at least one course, cannot drop any more courses.");
+                return; // Exit if the user is enrolled in only one course
+            }
+        } catch (SQLException e) {
+            System.out.println("An error occurred while checking the number of courses enrolled.");
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+            return;
+        }
         System.out.print("Enter the course number you want to drop: ");
         String courseNum = scanner.nextLine();
 
+        //
         // Validate course number
         while (true) {
             // Check if the course exists and that the user is enrolled in it
@@ -349,13 +366,12 @@ public class goldInterface {
 
     public static void viewPreviousQuarterGrades(String permNumber) {
         // First calculate the previous quarter based on the current quarter
-        String previousQuarter = "";
-        if (currentQuarter.charAt(currentQuarter.length() - 1) == 'S') {
-            previousQuarter = "25 W";
-        } else if (currentQuarter.charAt(currentQuarter.length() - 1) == 'W') {
-            previousQuarter = "24 F";
-        } else {
-            previousQuarter = "24 S";
+        System.out.println("Enter the quarter you want to view grades for (e.g., 25 S, 24 W): ");
+        String previousQuarter = scanner.nextLine().trim();
+        // Validate the previous quarter format
+        while (!previousQuarter.matches("\\d{2} [SWF]")) {
+            System.out.println("Invalid quarter format. Please enter in the format 'YY Q' (e.g., 25 S, 24 W): ");
+            previousQuarter = scanner.nextLine().trim();
         }
 
         // went through validation, now list courses by looking at the has_taken table
@@ -478,14 +494,17 @@ public class goldInterface {
 
         // Now look at the courses that the user has already taken/is taking 
         List<String> takenCourses = new ArrayList<>();
+        List<String> passingGrades = Arrays.asList("A", "B", "C"); // Assuming these are passing grades
         try {
             PreparedStatement previousCourses = connection.prepareStatement(
-                    "SELECT course_num FROM has_taken WHERE perm = ?");
+                    "SELECT course_num, grade FROM has_taken WHERE perm = ?");
             previousCourses.setString(1, permNumber); // Replace with actual perm number
             ResultSet resultSet = previousCourses.executeQuery();
 
             while (resultSet.next()) {
-                takenCourses.add(resultSet.getString("course_num"));
+                if (passingGrades.contains(resultSet.getString("grade"))) {
+                    takenCourses.add(resultSet.getString("course_num"));
+                }
             }
 
             PreparedStatement currentCourses = connection.prepareStatement(
@@ -493,7 +512,7 @@ public class goldInterface {
             currentCourses.setString(1, permNumber); // Replace with actual perm number
             ResultSet resultSet2 = currentCourses.executeQuery();
             while (resultSet2.next()) {
-                takenCourses.add(resultSet2.getString("course_num"));
+                takenCourses.add(resultSet.getString("course_num"));
             }
         } catch (SQLException e) {
             System.out.println("SQL ERROR:");
@@ -609,11 +628,64 @@ public class goldInterface {
 
     public static void changePin(String permNumber) throws Exception {
         // First, ask the user for current pin to validate 
-        System.out.print("Enter current pin: ");
-        String pin = scanner.nextLine();
-        // Hash the current pin for security
+        while (true) {
+            System.out.print("Enter current pin: ");
+            String pin = scanner.nextLine();
+            // Hash the current pin for security
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(String.valueOf(pin).getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            String hashedPin = hexString.toString();
+
+            // Check if the current pin is correct
+            try {
+                PreparedStatement checkPin = connection.prepareStatement(
+                        "SELECT * FROM students WHERE perm = ? AND pin = ?");
+                checkPin.setString(1, permNumber);
+                checkPin.setString(2, hashedPin);
+                ResultSet resultSet = checkPin.executeQuery();
+                if (!resultSet.next()) {
+                    System.out.println("Current pin is incorrect, please try again.");
+                } else {
+                    System.out.println("Current pin is correct, you can change your pin now.");
+                    break; // Exit the loop if the pin is correct
+                }
+            } catch (Exception e) {
+                System.out.println("SQL ERROR:");
+                System.out.println(e);
+                return;
+            }
+        }
+
+        // Passed to this point, therefore the pin is correct 
+        System.out.print("Enter new pin: ");
+        String newPin = scanner.nextLine();
+        System.out.print("Re-enter new pin: ");
+        String confirmPin = scanner.nextLine();
+        // Validate the new pin
+        while (!newPin.equals(confirmPin) || !newPin.matches("\\d{5}")) {
+            if (newPin.length() != 5) {
+                System.out.println("New pin must be exactly 5 digits long.");
+            }
+            if (!newPin.equals(confirmPin)) {
+                System.out.println("New pins do not match, please try again.");
+            }
+            System.out.print("Enter new pin: ");
+            newPin = scanner.nextLine();
+            System.out.print("Re-enter new pin: ");
+            confirmPin = scanner.nextLine();
+        }
+
+        // Hash the new pin for security
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(String.valueOf(pin).getBytes("UTF-8"));
+        byte[] hash = digest.digest(String.valueOf(newPin).getBytes("UTF-8"));
         StringBuilder hexString = new StringBuilder();
         for (byte b : hash) {
             String hex = Integer.toHexString(0xff & b);
@@ -623,50 +695,6 @@ public class goldInterface {
             hexString.append(hex);
         }
         String hashedPin = hexString.toString();
-
-        // Check if the current pin is correct
-        try {
-            PreparedStatement checkPin = connection.prepareStatement(
-                    "SELECT * FROM students WHERE perm = ? AND pin = ?");
-            checkPin.setString(1, permNumber);
-            checkPin.setString(2, hashedPin);
-            ResultSet resultSet = checkPin.executeQuery();
-            if (!resultSet.next()) {
-                System.out.println("Current pin is incorrect, please try again.");
-                return;
-            }
-        } catch (Exception e) {
-            System.out.println("SQL ERROR:");
-            System.out.println(e);
-            return;
-        }
-
-        // Passed to this point, therefore the pin is correct 
-        System.out.print("Enter new pin: ");
-        String newPin = scanner.nextLine();
-        System.out.print("Re-enter new pin: ");
-        String confirmPin = scanner.nextLine();
-        // Validate the new pin
-        while (!newPin.equals(confirmPin)) {
-            System.out.println("New pins do not match, please try again.");
-            System.out.print("Enter new pin: ");
-            newPin = scanner.nextLine();
-            System.out.print("Re-enter new pin: ");
-            confirmPin = scanner.nextLine();
-        }
-
-        // Hash the new pin for security
-        digest = MessageDigest.getInstance("SHA-256");
-        hash = digest.digest(String.valueOf(newPin).getBytes("UTF-8"));
-        hexString = new StringBuilder();
-        for (byte b : hash) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) {
-                hexString.append('0');
-            }
-            hexString.append(hex);
-        }
-        hashedPin = hexString.toString();
 
         // Update the pin in the database
         try {
@@ -685,7 +713,7 @@ public class goldInterface {
             System.out.println(e);
             return;
         }
-
+        return;
     }
 
 }
