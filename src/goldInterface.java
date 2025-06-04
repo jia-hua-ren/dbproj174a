@@ -72,7 +72,7 @@ public class goldInterface {
                     viewPreviousQuarterGrades(permNumber);
                     break;
                 case 5:
-                    checkRequirements();
+                    checkRequirements(permNumber);
                     break;
                 case 6:
                     makeStudyPlan(permNumber);
@@ -386,10 +386,81 @@ public class goldInterface {
 
     }
 
-    public static void checkRequirements() {
+    public static void checkRequirements(String permNumber) {
         // Get the set of classes that the user has already taken 
+        List<String> takenCourses = new ArrayList<>();
+        List<String> takingCourses = new ArrayList<>();
+        try {
+            PreparedStatement previousCourses = connection.prepareStatement(
+                    "SELECT course_num, grade FROM has_taken WHERE perm = ?");
+            previousCourses.setString(1, permNumber); // Replace with actual perm number
+            ResultSet resultSet = previousCourses.executeQuery();
 
+            List<String> passingGrades = Arrays.asList("A", "B", "C"); // Assuming these are passing grades
+            while (resultSet.next()) {
+                if (passingGrades.contains(resultSet.getString("grade"))) {
+                    takenCourses.add(resultSet.getString("course_num"));
+                }
+            }
+
+            PreparedStatement currentCourses = connection.prepareStatement(
+                    "SELECT course_num FROM is_taking WHERE perm = ?");
+            currentCourses.setString(1, permNumber); // Replace with actual perm number
+            ResultSet resultSet2 = currentCourses.executeQuery();
+            while (resultSet2.next()) {
+                takingCourses.add(resultSet2.getString("course_num"));
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL ERROR:");
+            System.out.println(e);
+        }
         // Get the set of classes that the user has to take 
+        List<String> requiredClasses = new ArrayList<>(Arrays.asList(
+                "CS026", "CS130", "CS154", "CS170", "CS160"
+        ));
+        List<String> electiveClasses = new ArrayList<>(Arrays.asList(
+                "CS010", "EC010", "EC015", "EC140", "EC152", "EC154", "CS174"
+        ));
+        int count = 0;
+        Iterator<String> iterator = requiredClasses.iterator();
+        while (iterator.hasNext()) {
+            String course = iterator.next();
+            if (takenCourses.contains(course)) {
+                System.out.println("Required Met: " + course);
+                iterator.remove();  
+            } else if (takingCourses.contains(course)) {
+                System.out.println("Required in Progress " + currentQuarter + " : " + course);
+                iterator.remove();  
+            } else {
+                System.out.println("Required Not Met: " + course);
+                count++;
+            }
+        }
+        if (count == 0) {
+            System.out.println("You have met all the required classes!");
+        } else {
+            System.out.println("Remaining Required Classes: " + count);
+        }
+        count = 0;
+        Iterator<String> electiveIterator = electiveClasses.iterator();
+        while (electiveIterator.hasNext()) {
+            String course = electiveIterator.next();
+            if (takenCourses.contains(course)) {
+                System.out.println("Elective Met: " + course);
+                electiveIterator.remove();
+            } else if (takingCourses.contains(course)) {
+                System.out.println("Elective in Progress " + currentQuarter + " : " + course);
+                electiveIterator.remove();
+            } else {
+                System.out.println("Elective Not Met: " + course);
+                count++;
+            }
+        }
+        if (count == 0) {
+            System.out.println("You have met all the elective classes!");
+        } else {
+            System.out.println("Remaining Elective Classes: " + (count - 2));
+        }
         // Now, separate the sets into the required classes and elective classes
         // Check if the required classes are met and if the elective classes are met 
     }
