@@ -18,13 +18,12 @@ public class goldInterface {
     // Connect to the database
 
     public static void main(String[] args) {
-        // Create a connection to the database
         try {
             connectToDatabase();
         } catch (SQLException e) {
             System.out.println("Error connecting to the database:");
             System.out.println(e);
-            return; // Exit if connection fails
+            return; 
         }
         // First force user to login 
         String studentName = "";
@@ -37,7 +36,7 @@ public class goldInterface {
             } catch (Exception e) {
                 System.out.println("An error occurred during login, please try again.");
                 System.out.println(e);
-                return; // Exit if login fails
+                return; 
             }
         }
         studentName = array[0];
@@ -54,9 +53,15 @@ public class goldInterface {
             System.out.println("6. Make a Plan");
             System.out.println("7. Change PIN");
             System.out.println("8. Exit");
-
-            Scanner scanner = new Scanner(System.in);
-            int choice = scanner.nextInt();
+            int choice;
+            try {
+                choice = scanner.nextInt();
+            } catch (Exception e) {
+                System.out.println("Invalid choice. Please try again.");
+                scanner.nextLine();
+                continue;
+            }
+            scanner.nextLine();
 
             switch (choice) {
                 case 1:
@@ -127,9 +132,6 @@ public class goldInterface {
     }
 
     public static String[] login() throws Exception {
-        // Implement login logic here
-        // For example, you can use a Scanner to read user input for username and
-        // password
         String sname = "";
         String perm = "";
         // Check that the username and password match valid entries in the database
@@ -171,7 +173,6 @@ public class goldInterface {
                     System.out.println("Login successful!");
                     sname = resultSet.getString("sname");
                     break;
-                    // Proceed with the application logic
                 } else {
                     System.out.println("Wrong password, try again.");
                 }
@@ -194,7 +195,7 @@ public class goldInterface {
                 PreparedStatement preparedStatement = connection.prepareStatement(
                         "SELECT * FROM course_offering WHERE course_num = ? AND yr_qtr = ?");
                 preparedStatement.setString(1, courseNum);
-                preparedStatement.setString(2, "25 S"); // Assuming a specific year and quarter
+                preparedStatement.setString(2, "25 S"); 
                 ResultSet resultSet = preparedStatement.executeQuery();
 
                 if (!resultSet.next()) {
@@ -202,6 +203,18 @@ public class goldInterface {
                     courseNum = scanner.nextLine();
                 } else {
                     System.out.println("Valid course found, checking capacity...");
+
+                    // Check if the course is already in the is_taking table
+                    PreparedStatement isTakingStatement = connection.prepareStatement(
+                            "SELECT * FROM is_taking WHERE course_num = ? AND perm = ?");
+                    isTakingStatement.setString(1, courseNum);
+                    isTakingStatement.setString(2, permNumber);
+                    ResultSet isTakingResultSet = isTakingStatement.executeQuery();
+                    if (isTakingResultSet.next()) {
+                        System.out.println("You are already enrolled in this course, try another course.");
+                        courseNum = scanner.nextLine();
+                    }
+
                     // Now that we have a valid course
                     // make sure that the course is not full
                     int capacity = resultSet.getInt("cap");
@@ -231,50 +244,64 @@ public class goldInterface {
 
                         // Check the courses that the user has already taken
                         PreparedStatement userCoursesStatement = connection.prepareStatement(
-                                "SELECT course_num FROM has_taken WHERE perm = ?");
+                                "SELECT course_num, grade FROM has_taken WHERE perm = ?");
                         userCoursesStatement.setString(1, permNumber);
                         ResultSet userCoursesResultSet = userCoursesStatement.executeQuery();
-                        // Now iterate through the prerequisite large string and
+
+                        // Now iterate through the prereqs and make a list
                         prereqResultSet.next();
-                        String prereqs = prereqResultSet.getString("prereq");
-                        System.out.println("Prerequisites for the course: " + prereqs);
-                        if (prereqs == null || prereqs.strip().isEmpty()) {
+                        String prereqsStr = prereqResultSet.getString("prereq");
+                        System.out.println("Prerequisites for the course: " + prereqsStr);
+
+                        if (prereqsStr == null || prereqsStr.trim().isEmpty()) {
                             System.out.println("This course has no prerequisites, you can add it directly!");
                             // The user has no prerequisites, so we can add the course
                             PreparedStatement addCourseStatement = connection.prepareStatement(
                                     "INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (?, ?, ?)");
                             addCourseStatement.setString(1, permNumber);
                             addCourseStatement.setString(2, courseNum);
-                            addCourseStatement.setString(3, "25 S"); // Assuming a specific year and quarter
+                            addCourseStatement.setString(3, "25 S"); 
                             addCourseStatement.executeUpdate();
 
                             System.out.println("Course added successfully!");
                             break;
                         }
+
+                        String[] prerequisites = prereqsStr.split(" ");
+                        List<String> remainingPrereqs = new ArrayList<>(Arrays.asList(prerequisites));
+
+                        // Get list of courses user has taken
+                        List<String> takenCourses = new ArrayList<>();
                         while (userCoursesResultSet.next()) {
-                            String userCourse = userCoursesResultSet.getString("course_num");
-                            System.out.println("Prerequisite: " + prereqs);
-                            if (prereqs.contains(userCourse)) {
-                                prereqs = prereqs.replace(userCourse, "");
+                            if (userCoursesResultSet.getString("grade").equals("A") || userCoursesResultSet.getString("grade").equals("B") || userCoursesResultSet.getString("grade").equals("C")) {
+                                takenCourses.add(userCoursesResultSet.getString("course_num"));
                             }
-                            if (prereqs.strip() == "") {
-                                System.out.println("You have met all the prerequisites for this course!");
-                                // The user has met all the prerequisites, so we can add the course
-                                PreparedStatement addCourseStatement = connection.prepareStatement(
-                                        "INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (?, ?, ?)");
-                                addCourseStatement.setString(1, permNumber);
-                                addCourseStatement.setString(2, courseNum);
-                                addCourseStatement.setString(3, "25 S"); // Assuming a specific year and quarter
-                                addCourseStatement.executeUpdate();
-
-                                System.out.println("Course added successfully!");
-                                break;
-                            }
-
                         }
-                        System.out.println(
-                                "You have not met all the prerequisites for this course, please try another course.");
-                        courseNum = scanner.nextLine();
+
+                        for (String prereq : prerequisites) {
+                            if (takenCourses.contains(prereq)) {
+                                remainingPrereqs.remove(prereq);
+                            }
+                        }
+
+                        if (remainingPrereqs.isEmpty()) {
+                            System.out.println("You have met all the prerequisites for this course!");
+                            // The user has met all the prerequisites, so we can add the course
+                            PreparedStatement addCourseStatement = connection.prepareStatement(
+                                    "INSERT INTO is_taking (perm, course_num, yr_qtr) VALUES (?, ?, ?)");
+                            addCourseStatement.setString(1, permNumber);
+                            addCourseStatement.setString(2, courseNum);
+                            addCourseStatement.setString(3, "25 S");
+                            addCourseStatement.executeUpdate();
+
+                            System.out.println("Course added successfully!");
+                            break;
+                        } else {
+                            System.out.println("You have not met all the prerequisites for this course.");
+                            System.out.println("Missing prerequisites: " + String.join(", ", remainingPrereqs));
+                            System.out.println("Please try another course.");
+                            courseNum = scanner.nextLine();
+                        }
                     }
                 }
             } catch (SQLException e) {
@@ -296,7 +323,7 @@ public class goldInterface {
             resultSet.next();
             if (resultSet.getInt("num_courses") <= 1) {
                 System.out.println("You must be enrolled in at least one course, cannot drop any more courses.");
-                return; // Exit if the user is enrolled in only one course
+                return; 
             }
         } catch (SQLException e) {
             System.out.println("An error occurred while checking the number of courses enrolled.");
@@ -335,7 +362,6 @@ public class goldInterface {
                     break;
                 }
             } catch (SQLException e) {
-                scanner.close();
                 System.out.println("An error occurred while dropping the course.");
 
                 System.out.println("SQL ERROR:");
@@ -350,7 +376,7 @@ public class goldInterface {
             PreparedStatement preparedStatement = connection.prepareStatement(
                     "SELECT course_num FROM is_taking WHERE perm = ? AND yr_qtr = ?");
             preparedStatement.setString(1, permNumber);
-            preparedStatement.setString(2, currentQuarter); // Assuming currentQuarter is defined
+            preparedStatement.setString(2, currentQuarter); 
             ResultSet resultSet = preparedStatement.executeQuery();
 
             System.out.println("Courses enrolled in for " + currentQuarter + ":");
@@ -371,7 +397,6 @@ public class goldInterface {
         // Validate the previous quarter format
         while (!previousQuarter.matches("\\d{2} [SWF]")) {
             System.out.println("Invalid quarter format. Please enter in the format 'YY Q' (e.g., 25 S, 24 W): ");
-            previousQuarter = scanner.nextLine().trim();
         }
 
         // went through validation, now list courses by looking at the has_taken table
@@ -414,10 +439,10 @@ public class goldInterface {
         try {
             PreparedStatement previousCourses = connection.prepareStatement(
                     "SELECT course_num, grade FROM has_taken WHERE perm = ?");
-            previousCourses.setString(1, permNumber); // Replace with actual perm number
+            previousCourses.setString(1, permNumber); 
             ResultSet resultSet = previousCourses.executeQuery();
 
-            List<String> passingGrades = Arrays.asList("A", "B", "C"); // Assuming these are passing grades
+            List<String> passingGrades = Arrays.asList("A", "B", "C");
             while (resultSet.next()) {
                 if (passingGrades.contains(resultSet.getString("grade"))) {
                     takenCourses.add(resultSet.getString("course_num"));
@@ -426,7 +451,7 @@ public class goldInterface {
 
             PreparedStatement currentCourses = connection.prepareStatement(
                     "SELECT course_num FROM is_taking WHERE perm = ?");
-            currentCourses.setString(1, permNumber); // Replace with actual perm number
+            currentCourses.setString(1, permNumber); 
             ResultSet resultSet2 = currentCourses.executeQuery();
             while (resultSet2.next()) {
                 takingCourses.add(resultSet2.getString("course_num"));
@@ -480,10 +505,9 @@ public class goldInterface {
         if (count == 0) {
             System.out.println("You have met all the elective classes!");
         } else {
-            System.out.println("Remaining Elective Classes: " + (count - 2));
+            System.out.println("Remaining Elective Classes: " + Math.max(0, (count - 2)));
         }
-        // Now, separate the sets into the required classes and elective classes
-        // Check if the required classes are met and if the elective classes are met 
+
     }
 
     public static void makeStudyPlan(String permNumber) {
@@ -494,11 +518,11 @@ public class goldInterface {
 
         // Now look at the courses that the user has already taken/is taking 
         List<String> takenCourses = new ArrayList<>();
-        List<String> passingGrades = Arrays.asList("A", "B", "C"); // Assuming these are passing grades
+        List<String> passingGrades = Arrays.asList("A", "B", "C");
         try {
             PreparedStatement previousCourses = connection.prepareStatement(
                     "SELECT course_num, grade FROM has_taken WHERE perm = ?");
-            previousCourses.setString(1, permNumber); // Replace with actual perm number
+            previousCourses.setString(1, permNumber);
             ResultSet resultSet = previousCourses.executeQuery();
 
             while (resultSet.next()) {
@@ -509,14 +533,15 @@ public class goldInterface {
 
             PreparedStatement currentCourses = connection.prepareStatement(
                     "SELECT course_num FROM is_taking WHERE perm = ?");
-            currentCourses.setString(1, permNumber); // Replace with actual perm number
+            currentCourses.setString(1, permNumber);
             ResultSet resultSet2 = currentCourses.executeQuery();
             while (resultSet2.next()) {
-                takenCourses.add(resultSet.getString("course_num"));
+                takenCourses.add(resultSet2.getString("course_num"));
             }
         } catch (SQLException e) {
             System.out.println("SQL ERROR:");
             System.out.println(e);
+            return;
         }
 
         // Now we have the list of courses that the user has taken 
@@ -655,7 +680,7 @@ public class goldInterface {
                     System.out.println("Current pin is incorrect, please try again.");
                 } else {
                     System.out.println("Current pin is correct, you can change your pin now.");
-                    break; // Exit the loop if the pin is correct
+                    break; 
                 }
             } catch (Exception e) {
                 System.out.println("SQL ERROR:");
