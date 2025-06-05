@@ -44,6 +44,7 @@ public class goldInterface {
         System.out.println("Welcome to the Gold Interface " + studentName + "!");
 
         while (true) { // Find out what action the user wants to take
+            System.out.println("================================================");
             System.out.println("Please choose an action:");
             System.out.println("1. Add a Course");
             System.out.println("2. Drop a Course");
@@ -206,13 +207,28 @@ public class goldInterface {
 
                     // Check if the course is already in the is_taking table
                     PreparedStatement isTakingStatement = connection.prepareStatement(
-                            "SELECT * FROM is_taking WHERE course_num = ? AND perm = ?");
+                            "SELECT * FROM is_taking WHERE course_num = ? AND perm = ? AND yr_qtr = ?");
                     isTakingStatement.setString(1, courseNum);
                     isTakingStatement.setString(2, permNumber);
+                    isTakingStatement.setString(3, currentQuarter);
                     ResultSet isTakingResultSet = isTakingStatement.executeQuery();
                     if (isTakingResultSet.next()) {
                         System.out.println("You are already enrolled in this course, try another course.");
                         courseNum = scanner.nextLine();
+                    }
+
+                    // If the size of isTakingREsult is greater than or equal to 5, then the user cannot enroll in any more courses
+                    // Count number of courses student is currently enrolled in
+                    PreparedStatement courseCountStatement = connection.prepareStatement(
+                            "SELECT COUNT(*) AS course_count FROM is_taking WHERE perm = ? AND yr_qtr = ?");
+                    courseCountStatement.setString(1, permNumber);
+                    courseCountStatement.setString(2, currentQuarter);
+                    ResultSet courseCountResult = courseCountStatement.executeQuery();
+                    courseCountResult.next();
+                    if (courseCountResult.getInt("course_count") >= 5) {
+                        System.out.println("You are already enrolled in the maximum number of courses, cannot enroll in any more courses.");
+                        System.out.println("Please drop a course before adding another one.");
+                        return;
                     }
 
                     // Now that we have a valid course
@@ -221,8 +237,9 @@ public class goldInterface {
 
                     // Check how many students are enrolled in the course
                     PreparedStatement countStatement = connection.prepareStatement(
-                            "SELECT COUNT(*) AS enrolled FROM is_taking WHERE course_num = ?");
+                            "SELECT COUNT(*) AS enrolled FROM is_taking WHERE course_num = ? AND yr_qtr = ?");
                     countStatement.setString(1, courseNum);
+                    countStatement.setString(2, currentQuarter);
                     ResultSet countResultSet = countStatement.executeQuery();
                     countResultSet.next();
                     int enrolled = countResultSet.getInt("enrolled");
@@ -317,8 +334,9 @@ public class goldInterface {
         // First, ensure that the number of courses the user is enrolled in is greater than 1 
         try {
             PreparedStatement numCourses = connection.prepareStatement(
-                    "SELECT COUNT(*) AS num_courses FROM is_taking WHERE perm = ?");
+                    "SELECT COUNT(*) AS num_courses FROM is_taking WHERE perm = ? AND yr_qtr = ?");
             numCourses.setString(1, permNumber);
+            numCourses.setString(2, currentQuarter);
             ResultSet resultSet = numCourses.executeQuery();
             resultSet.next();
             if (resultSet.getInt("num_courses") <= 1) {
@@ -340,9 +358,10 @@ public class goldInterface {
             // Check if the course exists and that the user is enrolled in it
             try {
                 PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT * FROM is_taking WHERE course_num = ? AND perm = ?");
+                        "SELECT * FROM is_taking WHERE course_num = ? AND perm = ? AND yr_qtr = ?");
                 preparedStatement.setString(1, courseNum);
                 preparedStatement.setString(2, permNumber);
+                preparedStatement.setString(3, currentQuarter);
                 ResultSet resultSet = preparedStatement.executeQuery();
 
                 if (!resultSet.next()) {
@@ -353,9 +372,10 @@ public class goldInterface {
                     // We got a valid pairing, we can drop the course
                     // Have to delete the course from the is_taking table
                     PreparedStatement dropCourseStatement = connection.prepareStatement(
-                            "DELETE FROM is_taking WHERE course_num = ? AND perm = ?");
+                            "DELETE FROM is_taking WHERE course_num = ? AND perm = ? AND yr_qtr = ?");
                     dropCourseStatement.setString(1, courseNum);
                     dropCourseStatement.setString(2, permNumber);
+                    dropCourseStatement.setString(3, currentQuarter);
                     dropCourseStatement.executeUpdate();
 
                     System.out.println("Course dropped successfully!");
@@ -450,8 +470,9 @@ public class goldInterface {
             }
 
             PreparedStatement currentCourses = connection.prepareStatement(
-                    "SELECT course_num FROM is_taking WHERE perm = ?");
+                    "SELECT course_num FROM is_taking WHERE perm = ? AND yr_qtr = ?");
             currentCourses.setString(1, permNumber); 
+            currentCourses.setString(2, currentQuarter);
             ResultSet resultSet2 = currentCourses.executeQuery();
             while (resultSet2.next()) {
                 takingCourses.add(resultSet2.getString("course_num"));
@@ -502,10 +523,10 @@ public class goldInterface {
                 count++;
             }
         }
-        if (count == 0) {
+        if (count <= 2) {
             System.out.println("You have met all the elective classes!");
         } else {
-            System.out.println("Remaining Elective Classes: " + Math.max(0, (count - 2)));
+            System.out.println("Remaining Elective Classes: " + (count - 2));
         }
 
     }
